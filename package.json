@@ -8,7 +8,12 @@
     "start": "bun run src/index.ts",
     "test": "bun test",
     "lint": "eslint src --ext .ts",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:dev": "docker-compose -f docker-compose.dev.yml up -d",
+    "docker:logs": "docker-compose logs -f",
+    "docker:build": "docker-compose build"
   },
   "keywords": [
     "bun",
@@ -20,17 +25,21 @@
   "license": "MIT",
   "dependencies": {
     "@elysiajs/swagger": "^1.1.1",
-    "@sinclair/typebox": "^0.32.35",
-    "elysia": "^1.1.20",
-    "mongodb": "^6.3.0"
+    "@hapi/boom": "^10.0.1",
+    "@sinclair/typebox": "^0.34.41",
+    "@whiskeysockets/baileys": "^6.7.4",
+    "elysia": "^1.4.16",
+    "mongodb": "^6.3.0",
+    "pino": "^8.17.2",
+    "qrcode-terminal": "^0.12.0"
   },
   "devDependencies": {
     "@types/bun": "latest",
     "@types/node": "^20.11.0",
+    "@types/qrcode-terminal": "^0.12.2",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
     "eslint": "^8.57.0",
     "typescript": "^5.4.5"
   }
 }
-
