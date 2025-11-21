@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: bot-nutri-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin123
+      MONGO_INITDB_DATABASE: bot-nutri
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+    networks:
+      - bot-nutri-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bot-nutri-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      MONGODB_URI: mongodb://admin:admin123@mongodb:27017/?authSource=admin
+      MONGODB_DB_NAME: bot-nutri
+      PORT: 3000
+    volumes:
+      - ./auth_info_baileys:/app/auth_info_baileys
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - bot-nutri-network
+    stdin_open: true
+    tty: true
+
+volumes:
+  mongodb_data:
+  mongodb_config:
+
+networks:
+  bot-nutri-network:
+    driver: bridge
+
