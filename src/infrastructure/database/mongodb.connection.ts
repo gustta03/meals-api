@@ -1,9 +1,5 @@
 import { MongoClient, Db } from "mongodb";
 
-/**
- * Classe para gerenciar conexão com MongoDB
- * Implementa padrão Singleton para garantir uma única conexão
- */
 export class MongoDBConnection {
   private static instance: MongoDBConnection;
   private client: MongoClient | null = null;
@@ -11,9 +7,6 @@ export class MongoDBConnection {
 
   private constructor() {}
 
-  /**
-   * Retorna instância única do MongoDBConnection
-   */
   static getInstance(): MongoDBConnection {
     if (!MongoDBConnection.instance) {
       MongoDBConnection.instance = new MongoDBConnection();
@@ -21,9 +14,6 @@ export class MongoDBConnection {
     return MongoDBConnection.instance;
   }
 
-  /**
-   * Conecta ao MongoDB
-   */
   async connect(): Promise<void> {
     if (this.client) {
       return;
@@ -37,16 +27,13 @@ export class MongoDBConnection {
       await this.client.connect();
       this.db = this.client.db(dbName);
 
-      console.log("✅ Connected to MongoDB");
+      console.log("Connected to MongoDB");
     } catch (error) {
-      console.error("❌ Failed to connect to MongoDB:", error);
+      console.error("Failed to connect to MongoDB:", error);
       throw error;
     }
   }
 
-  /**
-   * Retorna a instância do banco de dados
-   */
   getDatabase(): Db {
     if (!this.db) {
       throw new Error("Database not connected. Call connect() first.");
@@ -54,21 +41,15 @@ export class MongoDBConnection {
     return this.db;
   }
 
-  /**
-   * Desconecta do MongoDB
-   */
   async disconnect(): Promise<void> {
     if (this.client) {
       await this.client.close();
       this.client = null;
       this.db = null;
-      console.log("🔌 Disconnected from MongoDB");
+      console.log("Disconnected from MongoDB");
     }
   }
 
-  /**
-   * Verifica se está conectado
-   */
   isConnected(): boolean {
     return this.client !== null && this.db !== null;
   }
