@@ -1,5 +1,7 @@
 # Bot Nutri API
 
+![Meals Logo](docs/assets/meals-logo.png)
+
 API REST e bot WhatsApp para gerenciamento de alimentos e informações nutricionais, construída com **Bun** e **Elysia**, seguindo os princípios de **Clean Architecture** e **Clean Code**.
 
 ## Sobre o Projeto
