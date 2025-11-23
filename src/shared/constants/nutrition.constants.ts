@@ -1,0 +1,18 @@
+export const NUTRITION = {
+  MIN_CALORIES: 0,
+  MIN_PROTEIN: 0,
+  MIN_CARBS: 0,
+  MIN_FAT: 0,
+  MIN_WEIGHT_GRAMS: 0,
+} as const;
+
+export const UNIT_CONVERSIONS = {
+  COPO_ML: 200,
+  XICARA_ML: 240,
+  COLHER_SOPA_ML: 15,
+  COLHER_CHA_ML: 5,
+  PEITO_FRANGO_GRAMS: 150,
+  COXA_FRANGO_GRAMS: 100,
+  OVO_UNIDADE_GRAMS: 50,
+} as const;
+

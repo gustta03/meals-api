@@ -3,6 +3,7 @@ import makeWASocket, {
   useMultiFileAuthState,
   DisconnectReason,
   fetchLatestBaileysVersion,
+  downloadContentFromMessage,
 } from "@whiskeysockets/baileys";
 import { Boom } from "@hapi/boom";
 import pino from "pino";
@@ -65,22 +66,47 @@ export class BaileysWhatsAppRepository implements IWhatsAppRepository {
           message.message?.extendedTextMessage?.text ||
           "";
 
-        if (body) {
-          const isGroup = from.includes("@g.us");
-          const groupId = isGroup ? from : undefined;
+        const isGroup = from.includes("@g.us");
+        const groupId = isGroup ? from : undefined;
 
-          const timestamp = message.messageTimestamp
-            ? new Date(Number(message.messageTimestamp) * 1000)
-            : new Date();
+        const timestamp = message.messageTimestamp
+          ? new Date(Number(message.messageTimestamp) * 1000)
+          : new Date();
 
+        let imageBase64: string | undefined;
+        let imageMimeType: string | undefined;
+        let hasImage = false;
+
+        if (message.message.imageMessage) {
+          hasImage = true;
+          try {
+            const stream = await downloadContentFromMessage(message.message.imageMessage, "image");
+            const chunks: Uint8Array[] = [];
+            
+            for await (const chunk of stream) {
+              chunks.push(chunk);
+            }
+            
+            const imageBuffer = Buffer.concat(chunks);
+            imageBase64 = imageBuffer.toString("base64");
+            imageMimeType = message.message.imageMessage?.mimetype || "image/jpeg";
+          } catch (error) {
+            logger.error({ error }, "Failed to download image from WhatsApp");
+          }
+        }
+
+        if (body || hasImage) {
           const domainMessage = Message.fromWhatsApp(
             message.key.id || "",
             from,
             to,
-            body,
+            body || "",
             timestamp,
             isGroup,
-            groupId
+            groupId,
+            hasImage,
+            imageBase64,
+            imageMimeType
           );
 
           for (const callback of this.messageCallbacks) {

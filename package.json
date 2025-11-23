@@ -25,6 +25,7 @@
   "license": "MIT",
   "dependencies": {
     "@elysiajs/swagger": "^1.1.1",
+    "@google/generative-ai": "^0.24.1",
     "@hapi/boom": "^10.0.1",
     "@sinclair/typebox": "^0.34.41",
     "@whiskeysockets/baileys": "^6.7.4",

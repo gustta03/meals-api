@@ -6,7 +6,10 @@ export class Message {
     public readonly body: string,
     public readonly timestamp: Date,
     public readonly isGroup: boolean,
-    public readonly groupId?: string
+    public readonly groupId?: string,
+    public readonly hasImage: boolean = false,
+    public readonly imageBase64?: string,
+    public readonly imageMimeType?: string
   ) {}
 
   static create(
@@ -15,9 +18,12 @@ export class Message {
     to: string,
     body: string,
     isGroup: boolean = false,
-    groupId?: string
+    groupId?: string,
+    hasImage: boolean = false,
+    imageBase64?: string,
+    imageMimeType?: string
   ): Message {
-    return new Message(id, from, to, body, new Date(), isGroup, groupId);
+    return new Message(id, from, to, body, new Date(), isGroup, groupId, hasImage, imageBase64, imageMimeType);
   }
 
   static fromWhatsApp(
@@ -27,9 +33,12 @@ export class Message {
     body: string,
     timestamp: Date,
     isGroup: boolean,
-    groupId?: string
+    groupId?: string,
+    hasImage: boolean = false,
+    imageBase64?: string,
+    imageMimeType?: string
   ): Message {
-    return new Message(id, from, to, body, timestamp, isGroup, groupId);
+    return new Message(id, from, to, body, timestamp, isGroup, groupId, hasImage, imageBase64, imageMimeType);
   }
 }
 

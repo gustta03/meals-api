@@ -11,4 +11,5 @@ auth_info_baileys/
 *.pid
 *.seed
 *.pid.lock
-
+.cursor/
+.cursorrules    
