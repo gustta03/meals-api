@@ -42,43 +42,43 @@ export class AnalyzeNutritionUseCase {
   }
 
   private async buildNutritionAnalysis(
-    extractedItems: Array<{ nome: string; quantidade: string; peso_gramas: number; unidade?: string }>
+    extractedItems: Array<{ name: string; quantity: string; weightGrams: number; unit?: string }>
   ): Promise<Result<NutritionAnalysisDto, string>> {
     const nutritionItems: NutritionItemDto[] = [];
-    const totais = {
+    const totals = {
       kcal: 0,
-      proteina_g: 0,
-      carboidrato_g: 0,
-      lipidio_g: 0,
+      proteinG: 0,
+      carbG: 0,
+      fatG: 0,
     };
 
     for (const item of extractedItems) {
-      const pacoItem = await this.pacoRepository.findByName(item.nome);
+      const pacoItem = await this.pacoRepository.findByName(item.name);
 
       if (!pacoItem) {
-        logger.warn({ nome: item.nome }, "Item not found in PACO");
+        logger.warn({ name: item.name }, "Item not found in PACO");
         continue;
       }
 
-      const nutrientes = pacoItem.calculateNutritionForWeight(item.peso_gramas);
+      const nutrients = pacoItem.calculateNutritionForWeight(item.weightGrams);
 
       nutritionItems.push({
-        nome: pacoItem.nome,
-        quantidade: item.quantidade,
-        peso_gramas: item.peso_gramas,
-        paco_id: pacoItem.id,
-        nutrientes: {
-          kcal: nutrientes.kcal,
-          proteina_g: nutrientes.proteinaG,
-          carboidrato_g: nutrientes.carboidratoG,
-          lipidio_g: nutrientes.lipidioG,
+        name: pacoItem.nome,
+        quantity: item.quantity,
+        weightGrams: item.weightGrams,
+        pacoId: pacoItem.id,
+        nutrients: {
+          kcal: nutrients.kcal,
+          proteinG: nutrients.proteinaG,
+          carbG: nutrients.carboidratoG,
+          fatG: nutrients.lipidioG,
         },
       });
 
-      totais.kcal += nutrientes.kcal;
-      totais.proteina_g += nutrientes.proteinaG;
-      totais.carboidrato_g += nutrientes.carboidratoG;
-      totais.lipidio_g += nutrientes.lipidioG;
+      totals.kcal += nutrients.kcal;
+      totals.proteinG += nutrients.proteinaG;
+      totals.carbG += nutrients.carboidratoG;
+      totals.fatG += nutrients.lipidioG;
     }
 
     if (nutritionItems.length === 0) {
@@ -87,11 +87,11 @@ export class AnalyzeNutritionUseCase {
 
     return success({
       items: nutritionItems,
-      totais: {
-        kcal: Math.round(totais.kcal * 100) / 100,
-        proteina_g: Math.round(totais.proteina_g * 100) / 100,
-        carboidrato_g: Math.round(totais.carboidrato_g * 100) / 100,
-        lipidio_g: Math.round(totais.lipidio_g * 100) / 100,
+      totals: {
+        kcal: Math.round(totals.kcal * 100) / 100,
+        proteinG: Math.round(totals.proteinG * 100) / 100,
+        carbG: Math.round(totals.carbG * 100) / 100,
+        fatG: Math.round(totals.fatG * 100) / 100,
       },
     });
   }

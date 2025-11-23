@@ -40,7 +40,7 @@ export class GeminiService {
     }
   }
 
-  async extractFoodItemsFromText(text: string): Promise<Array<{ nome: string; quantidade: string; peso_gramas: number; unidade?: string }>> {
+  async extractFoodItemsFromText(text: string): Promise<Array<{ name: string; quantity: string; weightGrams: number; unit?: string }>> {
     try {
       const prompt = this.buildExtractionPrompt(text);
       const result = await this.model.generateContent(prompt);
@@ -51,10 +51,10 @@ export class GeminiService {
 
       const extractedItems = this.parseExtractionResponse(textResponse);
       return extractedItems.map((item) => ({
-        nome: item.name,
-        quantidade: item.quantity,
-        peso_gramas: item.weightGrams,
-        unidade: item.unit,
+        name: item.name,
+        quantity: item.quantity,
+        weightGrams: item.weightGrams,
+        unit: item.unit,
       }));
     } catch (error) {
       logger.error({ error, text }, "Failed to extract food items from text");
@@ -62,7 +62,7 @@ export class GeminiService {
     }
   }
 
-  async extractFoodItemsFromImage(imageBase64: string, mimeType: string): Promise<Array<{ nome: string; quantidade: string; peso_gramas: number; unidade?: string }>> {
+  async extractFoodItemsFromImage(imageBase64: string, mimeType: string): Promise<Array<{ name: string; quantity: string; weightGrams: number; unit?: string }>> {
     try {
       const prompt = this.buildImageExtractionPrompt();
       const imagePart = {
@@ -80,10 +80,10 @@ export class GeminiService {
 
       const extractedItems = this.parseExtractionResponse(textResponse);
       return extractedItems.map((item) => ({
-        nome: item.name,
-        quantidade: item.quantity,
-        peso_gramas: item.weightGrams,
-        unidade: item.unit,
+        name: item.name,
+        quantity: item.quantity,
+        weightGrams: item.weightGrams,
+        unit: item.unit,
       }));
     } catch (error) {
       logger.error({ error }, "Failed to extract food items from image");

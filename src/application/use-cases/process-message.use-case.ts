@@ -61,7 +61,7 @@ export class ProcessMessageUseCase {
       return failure(nutritionResult.error);
     }
 
-    const itemsList = nutritionResult.data.items.map((item) => `- ${item.nome} (${item.quantidade})`).join("\n");
+    const itemsList = nutritionResult.data.items.map((item) => `- ${item.name} (${item.quantity})`).join("\n");
 
     const confirmationMessage = `Detectei os seguintes itens no prato:\n\n${itemsList}\n\nConfirma esses itens? (sim/não)`;
 
@@ -72,11 +72,11 @@ export class ProcessMessageUseCase {
     const itemsList = data.items
       .map(
         (item) =>
-          `• ${item.nome} (${item.quantidade} - ${item.peso_gramas}g):\n  ${item.nutrientes.kcal} kcal | ${item.nutrientes.proteina_g}g proteína | ${item.nutrientes.carboidrato_g}g carboidrato | ${item.nutrientes.lipidio_g}g lipídio`
+          `• ${item.name} (${item.quantity} - ${item.weightGrams}g):\n  ${item.nutrients.kcal} kcal | ${item.nutrients.proteinG}g proteína | ${item.nutrients.carbG}g carboidrato | ${item.nutrients.fatG}g lipídio`
       )
       .join("\n\n");
 
-    return `📊 Análise Nutricional:\n\n${itemsList}\n\n📈 Totais:\n• Calorias: ${data.totais.kcal} kcal\n• Proteína: ${data.totais.proteina_g} g\n• Carboidrato: ${data.totais.carboidrato_g} g\n• Lipídio: ${data.totais.lipidio_g} g`;
+    return `📊 Análise Nutricional:\n\n${itemsList}\n\n📈 Totais:\n• Calorias: ${data.totals.kcal} kcal\n• Proteína: ${data.totals.proteinG} g\n• Carboidrato: ${data.totals.carbG} g\n• Lipídio: ${data.totals.fatG} g`;
   }
 }
 

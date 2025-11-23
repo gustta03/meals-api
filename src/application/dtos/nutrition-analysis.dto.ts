@@ -1,23 +1,23 @@
 export interface NutritionItemDto {
-  nome: string;
-  quantidade: string;
-  peso_gramas: number;
-  paco_id: string;
-  nutrientes: {
+  name: string;
+  quantity: string;
+  weightGrams: number;
+  pacoId: string;
+  nutrients: {
     kcal: number;
-    proteina_g: number;
-    carboidrato_g: number;
-    lipidio_g: number;
+    proteinG: number;
+    carbG: number;
+    fatG: number;
   };
 }
 
 export interface NutritionAnalysisDto {
   items: NutritionItemDto[];
-  totais: {
+  totals: {
     kcal: number;
-    proteina_g: number;
-    carboidrato_g: number;
-    lipidio_g: number;
+    proteinG: number;
+    carbG: number;
+    fatG: number;
   };
 }
 
