@@ -17,9 +17,9 @@ export const MESSAGE = {
     SEMANA: "semana",
   },
   RESPONSES: {
-    GREETING: "Olá! Como posso ajudar você hoje?",
-    HELP: "Comandos disponíveis:\n- Envie uma mensagem descrevendo sua refeição para análise nutricional\n- Digite 'resumo' ou 'hoje' para ver o resumo do dia\n- Digite 'relatório semanal' ou 'semana' para ver o relatório da semana\n- /ajuda - Ver esta mensagem",
-    NOT_UNDERSTOOD: "Desculpe, não entendi. Digite /ajuda para ver os comandos disponíveis.",
+    GREETING: "Olá! Que bom ter você aqui! 😊\n\nEu sou o Meals AI e estou aqui para te ajudar a acompanhar sua alimentação de forma saudável e consciente.\n\nComo posso te ajudar hoje? Você pode:\n• Descrever sua refeição para eu analisar\n• Enviar uma foto do seu prato\n• Pedir um resumo do seu dia\n• Solicitar um relatório semanal\n\nEstou aqui para te apoiar na sua jornada! 💪",
+    HELP: "Olá! Fico feliz em te ajudar! 😊\n\nAqui estão as formas de interagir comigo:\n\n📝 Análise Nutricional:\n• Envie uma mensagem descrevendo sua refeição (ex: \"2 peitos de frango, 200g de arroz e salada\")\n• Ou envie uma foto do seu prato e eu analiso para você\n\n📊 Resumos e Relatórios:\n• Digite \"resumo\" ou \"hoje\" para ver seu resumo nutricional do dia\n• Digite \"relatório semanal\" ou \"semana\" para ver um relatório completo da semana com gráficos\n\n💬 Comandos:\n• Digite \"ajuda\" ou \"help\" para ver esta mensagem novamente\n\nEstou sempre aqui para te ajudar! Qualquer dúvida, é só me chamar! 😄",
+    NOT_UNDERSTOOD: "Desculpe, não consegui entender sua mensagem. 😅\n\nMas não se preocupe! Estou aqui para te ajudar. Você pode:\n• Descrever sua refeição para análise\n• Enviar uma foto do seu prato\n• Digitar \"resumo\" para ver seu resumo do dia\n• Digitar \"relatório semanal\" para ver seu relatório da semana\n• Digitar \"ajuda\" para ver todos os comandos disponíveis\n\nVamos tentar novamente? 😊",
   },
 } as const;
 

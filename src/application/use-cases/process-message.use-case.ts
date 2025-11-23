@@ -51,7 +51,7 @@ export class ProcessMessageUseCase {
     }
 
     if (lowerBody.startsWith(MESSAGE.COMMANDS.ALIMENTOS)) {
-      return success({ message: "Lista de alimentos disponíveis..." });
+      return success({ message: "Em breve você poderá consultar a lista completa de alimentos disponíveis! 😊\n\nPor enquanto, você pode descrever qualquer alimento na sua refeição e eu farei a análise nutricional para você. Estou sempre aprendendo e melhorando para te ajudar melhor!" });
     }
 
     if (lowerBody.includes("resumo") || lowerBody.includes("hoje") || lowerBody.includes("diário")) {
@@ -84,7 +84,7 @@ export class ProcessMessageUseCase {
     
     if (dailySummary.success) {
       return success({
-        message: `${response}\n\n📅 Resumo do dia:\n• Total: ${dailySummary.data.dailyTotals.kcal} kcal | ${dailySummary.data.dailyTotals.proteinG}g proteína | ${dailySummary.data.dailyTotals.carbG}g carboidrato | ${dailySummary.data.dailyTotals.fatG}g lipídio`,
+        message: `${response}\n\n📅 Resumo do seu dia até agora:\n• Total: ${dailySummary.data.dailyTotals.kcal} kcal | ${dailySummary.data.dailyTotals.proteinG}g proteína | ${dailySummary.data.dailyTotals.carbG}g carboidrato | ${dailySummary.data.dailyTotals.fatG}g lipídio\n\nContinue assim! Você está no caminho certo! 🌟`,
       });
     }
 
@@ -105,9 +105,9 @@ export class ProcessMessageUseCase {
       return failure(nutritionResult.error);
     }
 
-    const itemsList = nutritionResult.data.items.map((item) => `- ${item.name} (${item.quantity})`).join("\n");
+    const itemsList = nutritionResult.data.items.map((item) => `• ${item.name} (${item.quantity})`).join("\n");
 
-    const confirmationMessage = `Detectei os seguintes itens no prato:\n\n${itemsList}\n\nConfirma esses itens? (sim/não)`;
+    const confirmationMessage = `Olá! Analisei a foto do seu prato e identifiquei os seguintes itens:\n\n${itemsList}\n\nEstá correto? Se sim, posso calcular os valores nutricionais completos para você! 😊\n\nConfirma esses itens? (sim/não)`;
 
     return success({ message: confirmationMessage });
   }
@@ -120,7 +120,7 @@ export class ProcessMessageUseCase {
       )
       .join("\n\n");
 
-    return `📊 Análise Nutricional:\n\n${itemsList}\n\n📈 Totais:\n• Calorias: ${data.totals.kcal} kcal\n• Proteína: ${data.totals.proteinG} g\n• Carboidrato: ${data.totals.carbG} g\n• Lipídio: ${data.totals.fatG} g`;
+    return `Perfeito! Analisei sua refeição e aqui está o resultado: 😊\n\n📊 Análise Nutricional:\n\n${itemsList}\n\n📈 Totais da Refeição:\n• Calorias: ${data.totals.kcal} kcal\n• Proteína: ${data.totals.proteinG} g\n• Carboidrato: ${data.totals.carbG} g\n• Lipídio: ${data.totals.fatG} g\n\nÓtima escolha! Continue cuidando da sua alimentação! 💪`;
   }
 
   private async getDailySummary(userId: string): Promise<Result<ProcessMessageResult, string>> {
@@ -133,7 +133,7 @@ export class ProcessMessageUseCase {
     const { meals, dailyTotals } = summaryResult.data;
 
     if (meals.length === 0) {
-      return success({ message: "📅 Nenhuma refeição registrada hoje." });
+      return success({ message: "Olá! 😊\n\nAinda não há refeições registradas para hoje.\n\nQue tal começar agora? Você pode:\n• Descrever sua refeição para eu analisar\n• Enviar uma foto do seu prato\n\nEstou aqui para te ajudar a acompanhar sua alimentação! 💪" });
     }
 
     const mealsList = meals
@@ -144,7 +144,7 @@ export class ProcessMessageUseCase {
       .join("\n");
 
     return success({
-      message: `📅 Resumo do dia (${summaryResult.data.date}):${mealsList}\n\n📊 Total do dia:\n• ${dailyTotals.kcal} kcal\n• ${dailyTotals.proteinG}g proteína\n• ${dailyTotals.carbG}g carboidrato\n• ${dailyTotals.fatG}g lipídio`,
+      message: `Ótimo! Aqui está seu resumo nutricional de hoje (${summaryResult.data.date}): 😊\n\n${mealsList}\n\n📊 Total do dia:\n• ${dailyTotals.kcal} kcal\n• ${dailyTotals.proteinG}g proteína\n• ${dailyTotals.carbG}g carboidrato\n• ${dailyTotals.fatG}g lipídio\n\nParabéns por cuidar da sua alimentação! Continue assim! 🌟`,
     });
   }
 

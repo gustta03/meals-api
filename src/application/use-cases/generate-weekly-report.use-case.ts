@@ -45,7 +45,8 @@ export class GenerateWeeklyReportUseCase {
   private formatTextReport(report: WeeklyReportDto): string {
     const { days, weeklyTotals, startDate, endDate } = report;
 
-    let text = `📊 RELATÓRIO SEMANAL DE NUTRIÇÃO\n`;
+    let text = `Olá! Aqui está seu relatório semanal completo! 😊\n\n`;
+    text += `📊 RELATÓRIO SEMANAL DE NUTRIÇÃO\n`;
     text += `📅 Período: ${this.formatDate(startDate)} a ${this.formatDate(endDate)}\n\n`;
 
     text += `📈 RESUMO POR DIA:\n\n`;
@@ -74,7 +75,10 @@ export class GenerateWeeklyReportUseCase {
     text += `   • Média de Calorias: ${weeklyTotals.averageKcal} kcal/dia\n`;
     text += `   • Média de Proteína: ${weeklyTotals.averageProteinG} g/dia\n`;
     text += `   • Média de Carboidrato: ${weeklyTotals.averageCarbG} g/dia\n`;
-    text += `   • Média de Lipídio: ${weeklyTotals.averageFatG} g/dia\n`;
+    text += `   • Média de Lipídio: ${weeklyTotals.averageFatG} g/dia\n\n`;
+
+    text += `Parabéns por acompanhar sua alimentação durante toda a semana! Continue assim, você está fazendo um ótimo trabalho! 🌟💪\n\n`;
+    text += `Abaixo você encontrará um gráfico visual com a evolução dos seus nutrientes ao longo da semana.`;
 
     return text;
   }
