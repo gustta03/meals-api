@@ -21,18 +21,23 @@ export class GeminiService {
 
   constructor() {
     const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      logger.warn("GEMINI_API_KEY not found in environment variables");
+    if (!apiKey || apiKey.trim() === "") {
+      logger.warn("GEMINI_API_KEY not found in environment variables. Gemini features will not work.");
       throw new Error(ERROR_MESSAGES.GEMINI.API_KEY_MISSING);
     }
 
-    this.genAI = new GoogleGenerativeAI(apiKey);
-    this.model = this.genAI.getGenerativeModel({
-      model: CONFIG.GEMINI.DEFAULT_MODEL,
-    });
-    this.visionModel = this.genAI.getGenerativeModel({
-      model: CONFIG.GEMINI.VISION_MODEL,
-    });
+    try {
+      this.genAI = new GoogleGenerativeAI(apiKey);
+      this.model = this.genAI.getGenerativeModel({
+        model: CONFIG.GEMINI.DEFAULT_MODEL,
+      });
+      this.visionModel = this.genAI.getGenerativeModel({
+        model: CONFIG.GEMINI.VISION_MODEL,
+      });
+    } catch (error) {
+      logger.error({ error }, "Failed to initialize Gemini service");
+      throw error;
+    }
   }
 
   async extractFoodItemsFromText(text: string): Promise<Array<{ nome: string; quantidade: string; peso_gramas: number; unidade?: string }>> {

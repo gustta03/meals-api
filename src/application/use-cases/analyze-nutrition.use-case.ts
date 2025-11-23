@@ -8,10 +8,14 @@ import { logger } from "@shared/logger/logger";
 export class AnalyzeNutritionUseCase {
   constructor(
     private readonly pacoRepository: IPacoRepository,
-    private readonly geminiService: GeminiService
+    private readonly geminiService: GeminiService | null
   ) {}
 
   async executeFromText(text: string): Promise<Result<NutritionAnalysisDto, string>> {
+    if (!this.geminiService) {
+      return failure(ERROR_MESSAGES.GEMINI.API_KEY_MISSING);
+    }
+
     try {
       const extractedItems = await this.geminiService.extractFoodItemsFromText(text);
       return this.buildNutritionAnalysis(extractedItems);
@@ -23,6 +27,10 @@ export class AnalyzeNutritionUseCase {
   }
 
   async executeFromImage(imageBase64: string, mimeType: string): Promise<Result<NutritionAnalysisDto, string>> {
+    if (!this.geminiService) {
+      return failure(ERROR_MESSAGES.GEMINI.API_KEY_MISSING);
+    }
+
     try {
       const extractedItems = await this.geminiService.extractFoodItemsFromImage(imageBase64, mimeType);
       return this.buildNutritionAnalysis(extractedItems);
@@ -59,7 +67,12 @@ export class AnalyzeNutritionUseCase {
         quantidade: item.quantidade,
         peso_gramas: item.peso_gramas,
         paco_id: pacoItem.id,
-        nutrientes,
+        nutrientes: {
+          kcal: nutrientes.kcal,
+          proteina_g: nutrientes.proteinaG,
+          carboidrato_g: nutrientes.carboidratoG,
+          lipidio_g: nutrientes.lipidioG,
+        },
       });
 
       totais.kcal += nutrientes.kcal;

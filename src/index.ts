@@ -72,7 +72,9 @@ async function startServer() {
       process.exit(0);
     });
   } catch (error) {
-    logger.error({ error }, "Failed to start server");
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    logger.error({ error: errorMessage, stack: errorStack }, "Failed to start server");
     process.exit(1);
   }
 }
