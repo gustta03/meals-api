@@ -10,6 +10,7 @@ interface UserSessionDocument {
   onboardingStep: OnboardingStep;
   createdAt: Date;
   updatedAt: Date;
+  dailyCalorieGoal?: number;
 }
 
 export class MongoDBUserSessionRepository implements IUserSessionRepository {
@@ -58,7 +59,9 @@ export class MongoDBUserSessionRepository implements IUserSessionRepository {
       doc._id,
       doc.onboardingStep,
       doc.createdAt,
-      doc.updatedAt
+      doc.updatedAt,
+      undefined,
+      doc.dailyCalorieGoal
     );
   }
 
@@ -68,6 +71,7 @@ export class MongoDBUserSessionRepository implements IUserSessionRepository {
       onboardingStep: session.onboardingStep,
       createdAt: session.createdAt,
       updatedAt: session.updatedAt,
+      dailyCalorieGoal: session.dailyCalorieGoal,
     };
   }
 }

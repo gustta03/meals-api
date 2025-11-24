@@ -4,10 +4,11 @@ import { UserSession } from "@domain/entities/user-session.entity";
 import { Result, success, failure } from "@shared/types/result";
 import { logger } from "@shared/logger/logger";
 import { ONBOARDING } from "@shared/constants/onboarding.constants";
+import { GOAL } from "@shared/constants/goal.constants";
 
 export interface OnboardingStatus {
   isNewUser: boolean;
-  currentStep: "welcome" | "explaining" | "practicing" | "completed";
+  currentStep: "welcome" | "goal_setting" | "explaining" | "practicing" | "completed";
   message?: string;
 }
 
@@ -61,6 +62,9 @@ export class ManageOnboardingUseCase {
 
       switch (session.onboardingStep) {
         case "welcome":
+          nextSession = session.updateOnboardingStep("goal_setting");
+          break;
+        case "goal_setting":
           nextSession = session.updateOnboardingStep("explaining");
           break;
         case "explaining":
@@ -95,6 +99,28 @@ export class ManageOnboardingUseCase {
     } catch (error) {
       logger.error({ error, userId }, "Failed to complete onboarding");
       return failure("Failed to complete onboarding");
+    }
+  }
+
+  async setDailyCalorieGoal(userId: string, goal: number): Promise<Result<UserSession, string>> {
+    try {
+      if (goal < GOAL.MIN_DAILY_CALORIES || goal > GOAL.MAX_DAILY_CALORIES) {
+        return failure(`Daily calorie goal must be between ${GOAL.MIN_DAILY_CALORIES} and ${GOAL.MAX_DAILY_CALORIES}`);
+      }
+
+      let session = await this.userSessionRepository.findByUserId(userId);
+      
+      // Create session if it doesn't exist
+      if (!session) {
+        session = UserSession.create(userId);
+      }
+
+      const updatedSession = session.setDailyCalorieGoal(goal);
+      await this.userSessionRepository.save(updatedSession);
+      return success(updatedSession);
+    } catch (error) {
+      logger.error({ error, userId, goal }, "Failed to set daily calorie goal");
+      return failure("Failed to set daily calorie goal");
     }
   }
 

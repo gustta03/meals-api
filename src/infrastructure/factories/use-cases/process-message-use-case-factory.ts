@@ -4,6 +4,8 @@ import { makeSaveMealUseCase } from "./save-meal-use-case-factory";
 import { makeGetDailySummaryUseCase } from "./get-daily-summary-use-case-factory";
 import { createGenerateWeeklyReportUseCase } from "./generate-weekly-report-use-case-factory";
 import { makeManageOnboardingUseCase } from "./manage-onboarding-use-case-factory";
+import { makeProgressBarService } from "../services/progress-bar-service-factory";
+import { makeUserSessionRepository } from "../repositories/user-session-repository-factory";
 
 export const makeProcessMessageUseCase = (): ProcessMessageUseCase => {
   return new ProcessMessageUseCase(
@@ -11,7 +13,9 @@ export const makeProcessMessageUseCase = (): ProcessMessageUseCase => {
     makeSaveMealUseCase(),
     makeGetDailySummaryUseCase(),
     createGenerateWeeklyReportUseCase(),
-    makeManageOnboardingUseCase()
+    makeManageOnboardingUseCase(),
+    makeProgressBarService(),
+    makeUserSessionRepository()
   );
 };
 

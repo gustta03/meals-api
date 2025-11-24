@@ -8,10 +8,14 @@ import { ManageOnboardingUseCase } from "./manage-onboarding.use-case";
 import { MESSAGE } from "@shared/constants/message.constants";
 import { ONBOARDING } from "@shared/constants/onboarding.constants";
 import { ERROR_MESSAGES } from "@shared/constants/error-messages.constants";
+import { GOAL } from "@shared/constants/goal.constants";
 import { logger } from "@shared/logger/logger";
 import { NutritionAnalysisDto } from "../dtos/nutrition-analysis.dto";
 import { MealType } from "@domain/entities/meal.entity";
 import { PendingConfirmationService } from "@infrastructure/services/pending-confirmation.service";
+import { PendingGoalUpdateService } from "@infrastructure/services/pending-goal-update.service";
+import { IProgressBarService } from "@infrastructure/services/progress-bar.service";
+import { IUserSessionRepository } from "@domain/repositories/user-session.repository";
 
 export interface ProcessMessageResult {
   message: string;
@@ -25,7 +29,9 @@ export class ProcessMessageUseCase {
     private readonly saveMealUseCase: SaveMealUseCase,
     private readonly getDailySummaryUseCase: GetDailySummaryUseCase,
     private readonly generateWeeklyReportUseCase: GenerateWeeklyReportUseCase,
-    private readonly manageOnboardingUseCase: ManageOnboardingUseCase
+    private readonly manageOnboardingUseCase: ManageOnboardingUseCase,
+    private readonly progressBarService: IProgressBarService,
+    private readonly userSessionRepository: IUserSessionRepository
   ) {}
 
   async execute(message: Message): Promise<Result<ProcessMessageResult, string>> {
@@ -46,6 +52,7 @@ export class ProcessMessageUseCase {
     const messageBody = message.body;
     const lowerBody = messageBody.toLowerCase().trim();
 
+    // Check for pending confirmation first (has higher priority than goal updates)
     if (PendingConfirmationService.hasPendingConfirmation(message.from)) {
       const isConfirmation = this.isConfirmationResponse(lowerBody);
       
@@ -63,9 +70,46 @@ export class ProcessMessageUseCase {
       }
     }
 
+    // Check for pending goal update (after confirmation check)
+    if (PendingGoalUpdateService.hasPendingGoalUpdate(message.from)) {
+      const calorieGoal = this.extractCalorieGoal(messageBody);
+      if (calorieGoal === null) {
+        return success({ message: ONBOARDING.MESSAGES.GOAL_INVALID });
+      }
+
+      const userSessionBefore = await this.userSessionRepository.findByUserId(message.from);
+      const hadGoalBefore = !!userSessionBefore?.dailyCalorieGoal;
+      
+      const setGoalResult = await this.manageOnboardingUseCase.setDailyCalorieGoal(message.from, calorieGoal);
+      PendingGoalUpdateService.clearPendingGoalUpdate(message.from);
+      
+      if (!setGoalResult.success) {
+        return success({ message: ONBOARDING.MESSAGES.GOAL_INVALID });
+      }
+      
+      return success({
+        message: `Perfeito! Sua meta diária de calorias foi ${hadGoalBefore ? "atualizada" : "definida"} para ${calorieGoal} kcal! 🔥\n\nAgora você pode acompanhar seu progresso em todas as análises nutricionais. 💪`,
+      });
+    }
+
     const onboardingStatus = await this.manageOnboardingUseCase.checkUserStatus(message.from);
 
     if (onboardingStatus.success && onboardingStatus.data.currentStep === "welcome") {
+      await this.manageOnboardingUseCase.advanceToNextStep(message.from);
+      return success({ message: ONBOARDING.MESSAGES.WELCOME });
+    }
+
+    if (onboardingStatus.success && onboardingStatus.data.currentStep === "goal_setting") {
+      const calorieGoal = this.extractCalorieGoal(messageBody);
+      if (calorieGoal === null) {
+        return success({ message: ONBOARDING.MESSAGES.GOAL_INVALID });
+      }
+
+      const setGoalResult = await this.manageOnboardingUseCase.setDailyCalorieGoal(message.from, calorieGoal);
+      if (!setGoalResult.success) {
+        return success({ message: ONBOARDING.MESSAGES.GOAL_INVALID });
+      }
+
       await this.manageOnboardingUseCase.advanceToNextStep(message.from);
       return success({ message: ONBOARDING.MESSAGES.EXPLAINING });
     }
@@ -82,6 +126,7 @@ export class ProcessMessageUseCase {
         return success({ message: MESSAGE.RESPONSES.GREETING });
       }
       if (onboardingStatus.success && onboardingStatus.data.currentStep === "welcome") {
+        await this.manageOnboardingUseCase.advanceToNextStep(message.from);
         return success({ message: ONBOARDING.MESSAGES.WELCOME });
       }
       return success({ message: MESSAGE.RESPONSES.GREETING });
@@ -89,6 +134,29 @@ export class ProcessMessageUseCase {
 
     if (lowerBody.includes(MESSAGE.COMMANDS.AJUDA) || lowerBody === MESSAGE.COMMANDS.HELP) {
       return success({ message: MESSAGE.RESPONSES.HELP });
+    }
+
+    // Check for goal update commands
+    if (
+      lowerBody.includes(MESSAGE.COMMANDS.META) ||
+      lowerBody.includes(MESSAGE.COMMANDS.ATUALIZAR_META) ||
+      lowerBody.includes(MESSAGE.COMMANDS.DEFINIR_META) ||
+      lowerBody.includes(MESSAGE.COMMANDS.META_CALORIAS)
+    ) {
+      const userSession = await this.userSessionRepository.findByUserId(message.from);
+      const currentGoal = userSession?.dailyCalorieGoal;
+      
+      PendingGoalUpdateService.setPendingGoalUpdate(message.from);
+      
+      if (currentGoal) {
+        return success({
+          message: `Sua meta atual é de ${currentGoal} kcal. 🔥\n\nQual é a sua nova meta diária de calorias?\n\nPor favor, me informe um número entre ${GOAL.MIN_DAILY_CALORIES} e ${GOAL.MAX_DAILY_CALORIES} (exemplo: 2000, 2500, etc.)`,
+        });
+      }
+      
+      return success({
+        message: `Vamos definir sua meta diária de calorias! 🔥\n\nPor favor, me informe um número entre ${GOAL.MIN_DAILY_CALORIES} e ${GOAL.MAX_DAILY_CALORIES} (exemplo: 2000, 2500, etc.)`,
+      });
     }
 
     if (lowerBody.startsWith(MESSAGE.COMMANDS.ALIMENTOS)) {
@@ -132,19 +200,42 @@ export class ProcessMessageUseCase {
     const response = this.formatNutritionResponse(nutritionResult.data);
     const dailySummary = await this.getDailySummaryUseCase.execute(message.from);
     
+    // Get user session to check for calorie goal
+    const userSession = await this.userSessionRepository.findByUserId(message.from);
+    const calorieGoal = userSession?.dailyCalorieGoal;
+    
+    let imageBuffer: Buffer | undefined;
+    let imageMimeType: string | undefined;
+    
+    if (calorieGoal && dailySummary.success) {
+      try {
+        imageBuffer = await this.progressBarService.generateCalorieProgressBar(
+          dailySummary.data.dailyTotals.kcal,
+          calorieGoal
+        );
+        imageMimeType = "image/png";
+      } catch (error) {
+        logger.warn({ error, userId: message.from }, "Failed to generate progress bar");
+      }
+    }
+    
     if (isCompletingOnboarding) {
       return success({
         message: `${response}\n\n${ONBOARDING.MESSAGES.PRACTICING_SUCCESS}`,
+        imageBuffer,
+        imageMimeType,
       });
     }
     
     if (dailySummary.success) {
       return success({
         message: `${response}\n\n📅 Resumo do seu dia até agora:\n• Total: ${dailySummary.data.dailyTotals.kcal} kcal | ${dailySummary.data.dailyTotals.proteinG}g proteína | ${dailySummary.data.dailyTotals.carbG}g carboidrato | ${dailySummary.data.dailyTotals.fatG}g lipídio\n\nContinue assim! Você está no caminho certo! 🌟`,
+        imageBuffer,
+        imageMimeType,
       });
     }
 
-    return success({ message: response });
+    return success({ message: response, imageBuffer, imageMimeType });
   }
 
   private async processImageMessage(message: Message): Promise<Result<ProcessMessageResult, string>> {
@@ -238,13 +329,34 @@ export class ProcessMessageUseCase {
       const response = this.formatNutritionResponse(nutritionResult.data);
       const dailySummary = await this.getDailySummaryUseCase.execute(userId);
       
+      // Get user session to check for calorie goal
+      const userSession = await this.userSessionRepository.findByUserId(userId);
+      const calorieGoal = userSession?.dailyCalorieGoal;
+      
+      let imageBuffer: Buffer | undefined;
+      let imageMimeType: string | undefined;
+      
+      if (calorieGoal && dailySummary.success) {
+        try {
+          imageBuffer = await this.progressBarService.generateCalorieProgressBar(
+            dailySummary.data.dailyTotals.kcal,
+            calorieGoal
+          );
+          imageMimeType = "image/png";
+        } catch (error) {
+          logger.warn({ error, userId }, "Failed to generate progress bar");
+        }
+      }
+      
       if (dailySummary.success) {
         return success({
           message: `${response}\n\n📅 Resumo do seu dia até agora:\n• Total: ${dailySummary.data.dailyTotals.kcal} kcal | ${dailySummary.data.dailyTotals.proteinG}g proteína | ${dailySummary.data.dailyTotals.carbG}g carboidrato | ${dailySummary.data.dailyTotals.fatG}g lipídio\n\nContinue assim! Você está no caminho certo! 🌟`,
+          imageBuffer,
+          imageMimeType,
         });
       }
 
-      return success({ message: response });
+      return success({ message: response, imageBuffer, imageMimeType });
     } catch (error) {
       logger.error({ error, userId }, "Failed to process pending nutrition data");
       return failure("Failed to process confirmation");
@@ -301,6 +413,22 @@ export class ProcessMessageUseCase {
       imageBuffer: chartImage,
       imageMimeType: "image/png",
     });
+  }
+
+  private extractCalorieGoal(messageBody: string): number | null {
+    // Remove espaços e caracteres não numéricos, exceto números
+    const cleaned = messageBody.trim().replace(/[^\d]/g, "");
+    const number = parseInt(cleaned, 10);
+    
+    if (isNaN(number)) {
+      return null;
+    }
+    
+    if (number < GOAL.MIN_DAILY_CALORIES || number > GOAL.MAX_DAILY_CALORIES) {
+      return null;
+    }
+    
+    return number;
   }
 
   private detectMealType(messageBody: string): MealType {
