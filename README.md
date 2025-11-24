@@ -18,6 +18,42 @@ Sistema completo de análise nutricional que permite:
 
 Este projeto serve como exemplo de implementação de arquitetura limpa, com separação clara de responsabilidades e boas práticas de desenvolvimento.
 
+## 🚀 Início Rápido
+
+Para começar rapidamente, você precisa:
+
+1. **Clonar e iniciar a API TACO** (obrigatório):
+```bash
+git clone https://github.com/raulfdm/taco-api.git
+cd taco-api
+bun install
+bun run dev  # Roda na porta 4000
+```
+
+2. **Clonar este projeto**:
+```bash
+git clone <repository-url>
+cd bot-nutri
+bun install
+```
+
+3. **Configurar variáveis de ambiente** (criar `.env`):
+```env
+MONGODB_URI=mongodb://admin:admin123@localhost:27017/?authSource=admin
+MONGODB_DB_NAME=bot-nutri
+USE_TACO_API=true
+TACO_API_URL=http://localhost:4000/graphql
+GEMINI_API_KEY=your_key_here
+```
+
+4. **Iniciar MongoDB e o projeto**:
+```bash
+bun run docker:dev  # MongoDB
+bun run dev         # Bot Nutri
+```
+
+Para instruções detalhadas, veja a seção [Como Iniciar o Projeto](#como-iniciar-o-projeto).
+
 ## Tecnologias
 
 - **Runtime**: [Bun](https://bun.sh/) - Runtime JavaScript/TypeScript de alta performance
@@ -135,40 +171,37 @@ src/
   - Médias diárias
   - Gráfico visual (calorias, proteínas, carboidratos)
 
-## Instalação
+## Como Iniciar o Projeto
 
 ### Pré-requisitos
 
-- [Bun](https://bun.sh/) instalado
+- [Bun](https://bun.sh/) instalado (versão 1.0 ou superior)
 - MongoDB rodando (local ou remoto)
-- Conta Google com acesso à API Gemini (opcional, mas recomendado)
+- **API TACO rodando localmente** (obrigatório - veja instruções abaixo)
+- Conta Google com acesso à API Gemini (opcional, mas recomendado para análise de imagens)
+- Node.js 18+ (se não usar Bun)
 
-### Passos
+### Passo a Passo
 
-1. Clone o repositório:
+#### 1. Clone o repositório
 ```bash
 git clone <repository-url>
-cd meals-ai
+cd bot-nutri
 ```
 
-2. Instale as dependências:
+#### 2. Instale as dependências
 ```bash
 bun install
 ```
 
-3. Configure as variáveis de ambiente:
-```bash
-# Copie o arquivo .env.example para .env
-cp .env.example .env
+#### 3. Configure as variáveis de ambiente
 
-# Edite o arquivo .env com suas configurações
-```
+Crie um arquivo `.env` na raiz do projeto com as seguintes variáveis:
 
-Variáveis de ambiente disponíveis:
-```
+```env
 # MongoDB Configuration
 MONGODB_URI=mongodb://admin:admin123@localhost:27017/?authSource=admin
-MONGODB_DB_NAME=meals-ai
+MONGODB_DB_NAME=bot-nutri
 
 # Server Configuration
 PORT=3000
@@ -177,35 +210,227 @@ NODE_ENV=development
 # Logger Configuration
 LOG_LEVEL=debug
 
-# Gemini Configuration (opcional)
+# Gemini Configuration (opcional, mas recomendado)
 GEMINI_API_KEY=your_gemini_api_key_here
+
+# TACO API Configuration (obrigatório - veja instruções abaixo)
+USE_TACO_API=true
+TACO_API_URL=http://localhost:4000/graphql
 ```
 
-4. Inicie o MongoDB (se usando Docker):
+**Onde obter a chave do Gemini:**
+1. Acesse [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. Crie uma nova API key
+3. Cole a chave no arquivo `.env`
+
+#### 4. Configure e inicie a API TACO (Obrigatório)
+
+A API TACO é **obrigatória** para o funcionamento do projeto. Ela fornece os dados nutricionais da Tabela Brasileira de Composição de Alimentos.
+
+**4.1. Clone o repositório da API TACO:**
 ```bash
+# Clone o repositório em um diretório separado
+cd ..
+git clone https://github.com/raulfdm/taco-api.git
+cd taco-api
+```
+
+**4.2. Instale as dependências:**
+```bash
+bun install
+```
+
+**4.3. Inicie a API TACO:**
+```bash
+# A API TACO rodará na porta 4000 por padrão
+bun run dev
+```
+
+**4.4. Verifique se está funcionando:**
+```bash
+# Em outro terminal, teste a API
+curl http://localhost:4000/graphql \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"query":"{ getAllFood(limit: 1) { id name } }"}'
+```
+
+Se retornar dados JSON, a API está funcionando corretamente.
+
+**4.5. Mantenha a API TACO rodando:**
+- Deixe o terminal com a API TACO aberto e rodando
+- A API deve estar acessível em `http://localhost:4000/graphql`
+- Volte para o diretório do projeto: `cd bot-nutri`
+
+**Documentação da API TACO:**
+- Site oficial: https://taco-api.netlify.app/
+- Repositório: https://github.com/raulfdm/taco-api
+
+#### 5. Inicie o MongoDB
+
+**Opção A: Usando Docker (recomendado)**
+```bash
+# Iniciar MongoDB em modo desenvolvimento
+bun run docker:dev
+
+# Ou iniciar em modo produção
 bun run docker:up
 ```
 
-5. Popule a tabela PACO (opcional):
+**Opção B: MongoDB local**
+Certifique-se de que o MongoDB está rodando na porta 27017 com as credenciais configuradas.
+
+#### 6. Configure a integração com a API TACO
+
+No arquivo `.env`, certifique-se de que as seguintes variáveis estão configuradas:
+
+```env
+# TACO API Configuration (obrigatório)
+USE_TACO_API=true
+TACO_API_URL=http://localhost:4000/graphql
+```
+
+#### 7. Execute o projeto
+
+```bash
+# Modo desenvolvimento (com hot reload)
+bun run dev
+
+# Modo produção
+bun run start
+```
+
+#### 8. Conecte o WhatsApp
+
+1. Ao iniciar o projeto, um QR Code será exibido no terminal
+2. Abra o WhatsApp no seu celular
+3. Vá em **Configurações > Aparelhos conectados > Conectar um aparelho**
+4. Escaneie o QR Code exibido no terminal
+5. Após escanear, o bot estará conectado permanentemente
+6. As credenciais são salvas em `auth_info_baileys/` (não commite esta pasta)
+
+#### 9. Acesse a documentação da API
+
+Após iniciar o servidor, acesse:
+- **Swagger UI**: http://localhost:3000/swagger
+- **Health Check**: http://localhost:3000/health
+- **API Info**: http://localhost:3000/
+
+## API PACO (Tabela Brasileira de Composição de Alimentos)
+
+### O que é PACO?
+
+A **Tabela Brasileira de Composição de Alimentos (PACO)** é uma base de dados oficial que contém informações nutricionais detalhadas de alimentos brasileiros. O sistema utiliza essa tabela para calcular valores nutricionais precisos durante a análise de refeições.
+
+### API TACO (Obrigatória)
+
+O projeto utiliza a **API TACO** como fonte principal de dados nutricionais. A API TACO é uma API GraphQL que fornece acesso completo à tabela PACO.
+
+**Repositório:** https://github.com/raulfdm/taco-api  
+**Documentação:** https://taco-api.netlify.app/
+
+**Vantagens:**
+- ✅ Dados sempre atualizados
+- ✅ Não ocupa espaço no banco local
+- ✅ Acesso a todos os alimentos da tabela PACO
+- ✅ Busca otimizada e rápida
+- ✅ API GraphQL moderna e eficiente
+
+**Como configurar:**
+
+1. **Clone e inicie a API TACO** (veja seção "Como Iniciar o Projeto" acima)
+2. Configure no `.env`:
+```env
+USE_TACO_API=true
+TACO_API_URL=http://localhost:4000/graphql
+```
+
+3. Certifique-se de que a API TACO está rodando antes de iniciar o bot-nutri
+
+**Verificar se está funcionando:**
+```bash
+# Testar integração
+bun run validate:taco
+
+# Verificar health check
+curl http://localhost:3000/health/taco
+```
+
+### MongoDB Local (Fallback - Não Recomendado)
+
+⚠️ **Nota:** O uso do MongoDB local como fallback não é recomendado, pois os dados podem estar desatualizados. Use apenas se a API TACO não estiver disponível temporariamente.
+
+**Como usar (apenas se necessário):**
+
+1. Configure no `.env`:
+```env
+USE_TACO_API=false
+```
+
+2. Popule o banco com dados:
 ```bash
 bun run seed:paco
 ```
 
-6. Execute o projeto:
-```bash
-# Desenvolvimento
-bun run dev
+3. Reinicie o servidor
 
-# Produção
-bun run start
+**Limitações:**
+- ❌ Dados podem estar desatualizados
+- ❌ Requer espaço no banco de dados
+- ❌ Necessita manutenção manual dos dados
+
+### Endpoints da API PACO
+
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| `POST` | `/paco` | Criar um novo item PACO (apenas MongoDB) |
+| `GET` | `/paco` | Listar todos os itens PACO |
+| `GET` | `/paco/search?q={termo}` | Buscar itens PACO por nome |
+| `GET` | `/paco/:id` | Buscar item PACO por ID |
+
+### Exemplos de Uso
+
+**Buscar itens PACO:**
+```bash
+# Buscar por termo
+curl "http://localhost:3000/paco/search?q=frango"
+
+# Listar todos
+curl "http://localhost:3000/paco"
+
+# Buscar por ID
+curl "http://localhost:3000/paco/123"
 ```
 
-7. Conecte o WhatsApp:
-   - Ao iniciar, um QR Code será exibido no terminal
-   - Escaneie o QR Code com seu WhatsApp
-   - Após escanear, o bot estará conectado permanentemente
+**Criar item PACO (apenas MongoDB):**
+```bash
+curl -X POST http://localhost:3000/paco \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nome": "Peito de frango grelhado",
+    "energiaKcal": 165,
+    "proteinaG": 31,
+    "carboidratoG": 0,
+    "lipidioG": 3.6
+  }'
+```
 
-## Endpoints
+### Fluxo de Decisão
+
+O sistema escolhe automaticamente qual repositório usar baseado nas variáveis de ambiente:
+
+```
+USE_TACO_API=true ou TACO_API_URL definido?
+├─ SIM → Usa TacoApiPacoRepository (API TACO local)
+└─ NÃO → Usa MongoDBPacoRepository (banco local - fallback)
+```
+
+**Importante:**
+- A API TACO é **obrigatória** para o funcionamento correto do projeto
+- Quando usando a API TACO, operações de escrita (`POST /paco`) não são suportadas, pois a API é somente leitura
+- Certifique-se de que a API TACO está rodando antes de iniciar o bot-nutri
+
+## Endpoints da API REST
 
 ### Alimentos
 
@@ -219,20 +444,24 @@ bun run start
 
 ### Itens PACO
 
-| Método | Endpoint | Descrição |
-|--------|----------|-----------|
-| `POST` | `/paco` | Criar um novo item PACO |
-| `GET` | `/paco` | Listar todos os itens PACO |
-| `GET` | `/paco/search` | Buscar itens PACO por nome |
-| `GET` | `/paco/:id` | Buscar item PACO por ID |
+| Método | Endpoint | Descrição | Observação |
+|--------|----------|-----------|------------|
+| `POST` | `/paco` | Criar um novo item PACO | Apenas MongoDB (não funciona com TACO API) |
+| `GET` | `/paco` | Listar todos os itens PACO | Funciona com ambos |
+| `GET` | `/paco/search?q={termo}` | Buscar itens PACO por nome | Funciona com ambos |
+| `GET` | `/paco/:id` | Buscar item PACO por ID | Funciona com ambos |
 
-### Outros
+**Nota:** Quando usando a API TACO (`USE_TACO_API=true`), o endpoint `POST /paco` não está disponível, pois a API TACO é somente leitura.
+
+### Health Check e Documentação
 
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
 | `GET` | `/` | Informações da API |
-| `GET` | `/health` | Health check |
-| `GET` | `/swagger` | Documentação Swagger |
+| `GET` | `/health` | Health check geral |
+| `GET` | `/health/taco` | Health check da API TACO |
+| `GET` | `/swagger` | Documentação Swagger (UI) |
+| `GET` | `/swagger/json` | Documentação OpenAPI (JSON) |
 
 ## Exemplos de Uso
 
@@ -330,28 +559,28 @@ O sistema de factories gerencia todo o fluxo:
 
 ```bash
 # Desenvolvimento
-bun run dev
+bun run dev              # Iniciar em modo desenvolvimento
+bun run start            # Iniciar em modo produção
 
-# Produção
-bun run start
+# Testes e Qualidade
+bun test                 # Executar testes
+bun run lint             # Verificar código com ESLint
+bun run type-check       # Verificar tipos TypeScript
 
-# Testes
-bun test
+# Banco de Dados
+bun run seed:paco        # Popular tabela PACO com dados locais
+bun run reset:db         # Resetar banco de dados (limpar todas as coleções)
+bun run check:paco       # Verificar repositório PACO
 
-# Linting
-bun run lint
-
-# Verificação de tipos
-bun run type-check
-
-# Popular tabela PACO
-bun run seed:paco
+# Integração TACO
+bun run validate:taco    # Validar integração com API TACO
 
 # Docker
-bun run docker:up      # Iniciar containers
-bun run docker:down    # Parar containers
-bun run docker:logs    # Ver logs dos containers
-bun run docker:build   # Build dos containers
+bun run docker:up       # Iniciar containers (produção)
+bun run docker:down     # Parar containers
+bun run docker:dev      # Iniciar containers (desenvolvimento)
+bun run docker:logs     # Ver logs dos containers
+bun run docker:build    # Build dos containers
 ```
 
 ## Documentação
