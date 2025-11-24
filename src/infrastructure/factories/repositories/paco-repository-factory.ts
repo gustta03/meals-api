@@ -3,16 +3,30 @@ import { MongoDBPacoRepository } from "../../repositories/mongodb-paco.repositor
 import { TacoApiPacoRepository } from "../../repositories/taco-api-paco.repository";
 import { makeTacoClient } from "../services/taco-client-factory";
 import { logger } from "@shared/logger/logger";
+import { CONFIG } from "@shared/constants/config.constants";
 
 export const makePacoRepository = (): IPacoRepository => {
-  const useTacoApi = process.env.USE_TACO_API === "true" || process.env.TACO_API_URL !== undefined;
+  const useTacoApiEnv = process.env.USE_TACO_API;
+  const tacoApiUrlEnv = process.env.TACO_API_URL;
+  
+  const useTacoApi = useTacoApiEnv === "true" || (tacoApiUrlEnv !== undefined && tacoApiUrlEnv !== "");
+  
+  logger.info(
+    {
+      USE_TACO_API: useTacoApiEnv,
+      TACO_API_URL: tacoApiUrlEnv || "not set",
+      willUseTacoApi: useTacoApi,
+    },
+    "PACO Repository factory - checking configuration"
+  );
   
   if (useTacoApi) {
-    logger.info("Using TACO API repository");
+    const apiUrl = tacoApiUrlEnv || CONFIG.TACO.API_URL;
+    logger.info({ apiUrl }, "Using TACO API repository");
     return new TacoApiPacoRepository(makeTacoClient());
   }
   
-  logger.info("Using MongoDB PACO repository");
+  logger.info("Using MongoDB PACO repository (fallback)");
   return new MongoDBPacoRepository();
 };
 
