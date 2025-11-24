@@ -41,6 +41,28 @@ export class AnalyzeNutritionUseCase {
     }
   }
 
+  async getExtractedItemsFromImage(
+    imageBase64: string,
+    mimeType: string
+  ): Promise<Array<{ name: string; quantity: string; weightGrams: number; unit?: string }> | null> {
+    if (!this.geminiService) {
+      return null;
+    }
+
+    try {
+      return await this.geminiService.extractFoodItemsFromImage(imageBase64, mimeType);
+    } catch (error) {
+      logger.error({ error }, "Failed to extract items from image");
+      return null;
+    }
+  }
+
+  async executeFromExtractedItems(
+    extractedItems: Array<{ name: string; quantity: string; weightGrams: number; unit?: string }>
+  ): Promise<Result<NutritionAnalysisDto, string>> {
+    return this.buildNutritionAnalysis(extractedItems);
+  }
+
   private async buildNutritionAnalysis(
     extractedItems: Array<{ name: string; quantity: string; weightGrams: number; unit?: string }>
   ): Promise<Result<NutritionAnalysisDto, string>> {

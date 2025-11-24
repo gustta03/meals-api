@@ -124,8 +124,14 @@ export class GeminiService {
 
 Mensagem: "${text}"
 
+IMPORTANTE: Use nomes GENÉRICOS e SIMPLES dos alimentos, sem descrições de preparo ou molhos.
+Exemplos:
+- "Asas de frango ao molho picante" → "asas de frango" ou "frango"
+- "Arroz branco temperado" → "arroz"
+- "Feijão preto" → "feijão"
+
 Extraia cada alimento mencionado com:
-- name: nome do alimento (em português, como mencionado na mensagem)
+- name: nome GENÉRICO do alimento (em português, sem preparo/molho)
 - quantity: quantidade mencionada (ex: "2 peitos", "300g", "1 copo")
 - weightGrams: peso estimado em gramas (converta unidades como "copo" para ml/gramas, "peito de frango" para ~150g cada, etc.)
 - unit: unidade mencionada (opcional, "g" ou "ml")
@@ -155,9 +161,17 @@ Retorne APENAS o JSON, sem texto adicional.`;
   private buildImageExtractionPrompt(): string {
     return `Analise a imagem do prato e identifique os alimentos presentes.
 
+IMPORTANTE: Use nomes GENÉRICOS e SIMPLES dos alimentos, sem descrições de preparo ou molhos.
+Exemplos:
+- "Asas de frango ao molho picante" → "asas de frango" ou "frango"
+- "Cenoura com aipo" → "cenoura" e "aipo" (separados)
+- "Molho ranch" → "molho" ou ignore se não for alimento principal
+- "Arroz branco" → "arroz"
+- "Feijão preto" → "feijão"
+
 Para cada alimento identificado, estime:
-- name: nome do alimento (em português)
-- quantity: quantidade estimada (ex: "1 porção", "2 unidades")
+- name: nome GENÉRICO do alimento (em português, sem preparo/molho)
+- quantity: quantidade estimada (ex: "1 porção", "2 unidades", "8 unidades")
 - weightGrams: peso estimado em gramas (faça uma estimativa razoável baseada no tamanho visual)
 - unit: "g" ou "ml"
 
@@ -165,7 +179,7 @@ Retorne APENAS um JSON válido no formato:
 {
   "items": [
     {
-      "name": "nome do alimento",
+      "name": "nome genérico do alimento",
       "quantity": "quantidade estimada",
       "weightGrams": 0,
       "unit": "g ou ml"

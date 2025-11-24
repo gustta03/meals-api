@@ -11,6 +11,7 @@ import { ERROR_MESSAGES } from "@shared/constants/error-messages.constants";
 import { logger } from "@shared/logger/logger";
 import { NutritionAnalysisDto } from "../dtos/nutrition-analysis.dto";
 import { MealType } from "@domain/entities/meal.entity";
+import { PendingConfirmationService } from "@infrastructure/services/pending-confirmation.service";
 
 export interface ProcessMessageResult {
   message: string;
@@ -44,6 +45,23 @@ export class ProcessMessageUseCase {
   private async processTextMessage(message: Message): Promise<Result<ProcessMessageResult, string>> {
     const messageBody = message.body;
     const lowerBody = messageBody.toLowerCase().trim();
+
+    if (PendingConfirmationService.hasPendingConfirmation(message.from)) {
+      const isConfirmation = this.isConfirmationResponse(lowerBody);
+      
+      if (isConfirmation === true) {
+        const pendingData = PendingConfirmationService.getPendingConfirmation(message.from);
+        if (pendingData) {
+          PendingConfirmationService.clearPendingConfirmation(message.from);
+          return this.processPendingNutritionData(message.from, pendingData);
+        }
+      } else if (isConfirmation === false) {
+        PendingConfirmationService.clearPendingConfirmation(message.from);
+        return success({ 
+          message: "Entendi! Se quiser, pode enviar outra foto ou descrever sua refeição novamente. 😊" 
+        });
+      }
+    }
 
     const onboardingStatus = await this.manageOnboardingUseCase.checkUserStatus(message.from);
 
@@ -137,23 +155,27 @@ export class ProcessMessageUseCase {
     const onboardingStatus = await this.manageOnboardingUseCase.checkUserStatus(message.from);
     const isCompletingOnboarding = onboardingStatus.success && onboardingStatus.data.currentStep === "practicing";
 
-    const nutritionResult = await this.analyzeNutritionUseCase.executeFromImage(
+    // Extrair itens da imagem (sem buscar na PACO ainda)
+    const extractedItems = await this.analyzeNutritionUseCase.getExtractedItemsFromImage(
       message.imageBase64,
       message.imageMimeType
     );
 
-    if (!nutritionResult.success) {
+    if (!extractedItems || extractedItems.length === 0) {
       if (isCompletingOnboarding) {
         return success({ message: ONBOARDING.MESSAGES.PRACTICING_RETRY });
       }
-      return failure(nutritionResult.error);
+      return success({ 
+        message: "Desculpe, não consegui identificar alimentos na imagem. 😅\n\nTente enviar uma foto mais clara ou descreva sua refeição em texto!" 
+      });
     }
 
-    if (isCompletingOnboarding) {
-      await this.manageOnboardingUseCase.completeOnboarding(message.from);
-    }
+    // Salvar dados pendentes para confirmação
+    PendingConfirmationService.setPendingConfirmation(message.from, {
+      items: extractedItems,
+    });
 
-    const itemsList = nutritionResult.data.items.map((item) => `• ${item.name} (${item.quantity})`).join("\n");
+    const itemsList = extractedItems.map((item) => `• ${item.name} (${item.quantity})`).join("\n");
 
     let confirmationMessage = `Olá! Analisei a foto do seu prato e identifiquei os seguintes itens:\n\n${itemsList}\n\nEstá correto? Se sim, posso calcular os valores nutricionais completos para você! 😊\n\nConfirma esses itens? (sim/não)`;
 
@@ -162,6 +184,71 @@ export class ProcessMessageUseCase {
     }
 
     return success({ message: confirmationMessage });
+  }
+
+  private isConfirmationResponse(text: string): boolean | null {
+    // Remove emojis e caracteres especiais, mantém apenas letras e espaços
+    const cleaned = text.replace(/[^\w\s]/gi, "").toLowerCase().trim();
+    
+    const confirmations = ["sim", "s", "yes", "y", "confirmo", "confirmar", "correto", "esta certo", "certo", "ok", "pode", "pode calcular", "confirma", "confirmado"];
+    const negations = ["não", "nao", "no", "n", "negativo", "incorreto", "errado", "não está", "nao esta", "nao esta correto", "não esta correto"];
+    
+    // Verificar correspondência exata primeiro
+    if (confirmations.some(conf => cleaned === conf)) {
+      return true;
+    }
+    
+    if (negations.some(neg => cleaned === neg)) {
+      return false;
+    }
+    
+    // Verificar se contém palavras de confirmação
+    if (confirmations.some(conf => cleaned.includes(conf) && conf.length >= 2)) {
+      return true;
+    }
+    
+    if (negations.some(neg => cleaned.includes(neg) && neg.length >= 2)) {
+      return false;
+    }
+    
+    return null; // Não é uma confirmação clara
+  }
+
+  private async processPendingNutritionData(
+    userId: string,
+    pendingData: { items: Array<{ name: string; quantity: string; weightGrams: number; unit?: string }> }
+  ): Promise<Result<ProcessMessageResult, string>> {
+    try {
+      // Re-analisar com os dados pendentes
+      const nutritionResult = await this.analyzeNutritionUseCase.executeFromExtractedItems(pendingData.items);
+
+      if (!nutritionResult.success) {
+        return success({ 
+          message: "Desculpe, não consegui calcular os valores nutricionais para esses itens. Alguns alimentos podem não estar na nossa base de dados. 😅" 
+        });
+      }
+
+      const mealType = this.detectMealType("");
+      const saveResult = await this.saveMealUseCase.execute(userId, nutritionResult.data, mealType);
+
+      if (!saveResult.success) {
+        logger.warn({ error: saveResult.error, userId }, "Failed to save meal, but showing analysis");
+      }
+
+      const response = this.formatNutritionResponse(nutritionResult.data);
+      const dailySummary = await this.getDailySummaryUseCase.execute(userId);
+      
+      if (dailySummary.success) {
+        return success({
+          message: `${response}\n\n📅 Resumo do seu dia até agora:\n• Total: ${dailySummary.data.dailyTotals.kcal} kcal | ${dailySummary.data.dailyTotals.proteinG}g proteína | ${dailySummary.data.dailyTotals.carbG}g carboidrato | ${dailySummary.data.dailyTotals.fatG}g lipídio\n\nContinue assim! Você está no caminho certo! 🌟`,
+        });
+      }
+
+      return success({ message: response });
+    } catch (error) {
+      logger.error({ error, userId }, "Failed to process pending nutrition data");
+      return failure("Failed to process confirmation");
+    }
   }
 
   private formatNutritionResponse(data: NutritionAnalysisDto): string {

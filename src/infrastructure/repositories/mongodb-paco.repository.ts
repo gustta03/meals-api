@@ -37,17 +37,68 @@ export class MongoDBPacoRepository implements IPacoRepository {
   async findByName(name: string): Promise<PacoItem | null> {
     try {
       const normalizedName = name.toLowerCase().trim();
-      const doc = await this.collection.findOne({
+      
+      // Tentativa 1: Busca exata
+      let doc = await this.collection.findOne({
         $or: [
           { nome: { $regex: new RegExp(`^${normalizedName}$`, "i") } },
           { nomeAlternativo: { $in: [new RegExp(`^${normalizedName}$`, "i")] } },
         ],
       });
-      return doc ? this.toEntity(doc) : null;
+      
+      if (doc) {
+        return this.toEntity(doc);
+      }
+
+      // Tentativa 2: Busca parcial (contém)
+      doc = await this.collection.findOne({
+        $or: [
+          { nome: { $regex: normalizedName, $options: "i" } },
+          { nomeAlternativo: { $in: [new RegExp(normalizedName, "i")] } },
+        ],
+      });
+      
+      if (doc) {
+        logger.debug({ originalName: name, foundAs: doc.nome }, "Found item with partial match");
+        return this.toEntity(doc);
+      }
+
+      // Tentativa 3: Extrair termos principais e buscar
+      const mainTerms = this.extractMainTerms(normalizedName);
+      for (const term of mainTerms) {
+        if (term.length < 3) continue; // Ignorar termos muito curtos
+        
+        doc = await this.collection.findOne({
+          $or: [
+            { nome: { $regex: new RegExp(`\\b${term}\\b`, "i") } },
+            { nomeAlternativo: { $in: [new RegExp(`\\b${term}\\b`, "i")] } },
+          ],
+        });
+        
+        if (doc) {
+          logger.debug({ originalName: name, foundAs: doc.nome, matchedTerm: term }, "Found item with main term match");
+          return this.toEntity(doc);
+        }
+      }
+
+      return null;
     } catch (error) {
       logger.error({ error, name }, "Failed to find PACO item by name");
       throw new Error(`Failed to find PACO item by name: ${error}`);
     }
+  }
+
+  private extractMainTerms(name: string): string[] {
+    // Remove palavras comuns que não são alimentos
+    const stopWords = ["ao", "de", "do", "da", "com", "sem", "ao", "molho", "picante", "grelhado", "frito", "cozido", "assado"];
+    
+    // Divide por espaços e remove stop words
+    const words = name
+      .split(/\s+/)
+      .filter(word => word.length > 2 && !stopWords.includes(word));
+    
+    // Retorna palavras principais (geralmente as primeiras são mais importantes)
+    return words.slice(0, 2); // Pega as 2 primeiras palavras significativas
   }
 
   async search(searchTerm: string): Promise<PacoItem[]> {
