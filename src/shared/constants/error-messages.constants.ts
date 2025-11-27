@@ -25,5 +25,12 @@ export const ERROR_MESSAGES = {
     WEEKLY_FAILED: "Failed to generate weekly report",
     CHART_GENERATION_FAILED: "Failed to generate chart",
   },
+  USER: {
+    NOT_FOUND: "User not found",
+    ALREADY_EXISTS: "User with this phone number already exists",
+    INVALID_PHONE_NUMBER: "Invalid phone number format",
+    FAILED_TO_CREATE: "Failed to create user",
+    FAILED_TO_UPDATE: "Failed to update user",
+  },
 } as const;
 

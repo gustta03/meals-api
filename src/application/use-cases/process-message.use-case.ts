@@ -5,6 +5,7 @@ import { SaveMealUseCase } from "./save-meal.use-case";
 import { GetDailySummaryUseCase } from "./get-daily-summary.use-case";
 import { GenerateWeeklyReportUseCase } from "./generate-weekly-report.use-case";
 import { ManageOnboardingUseCase } from "./manage-onboarding.use-case";
+import { EnsureUserExistsUseCase } from "./ensure-user-exists.use-case";
 import { MESSAGE } from "@shared/constants/message.constants";
 import { ONBOARDING } from "@shared/constants/onboarding.constants";
 import { ERROR_MESSAGES } from "@shared/constants/error-messages.constants";
@@ -30,12 +31,19 @@ export class ProcessMessageUseCase {
     private readonly getDailySummaryUseCase: GetDailySummaryUseCase,
     private readonly generateWeeklyReportUseCase: GenerateWeeklyReportUseCase,
     private readonly manageOnboardingUseCase: ManageOnboardingUseCase,
+    private readonly ensureUserExistsUseCase: EnsureUserExistsUseCase,
     private readonly progressBarService: IProgressBarService,
     private readonly userSessionRepository: IUserSessionRepository
   ) {}
 
   async execute(message: Message): Promise<Result<ProcessMessageResult, string>> {
     try {
+      const ensureUserResult = await this.ensureUserExistsUseCase.execute(message.from);
+      if (!ensureUserResult.success) {
+        logger.error({ error: ensureUserResult.error, phoneNumber: message.from }, "Failed to ensure user exists");
+        return failure(ERROR_MESSAGES.USER.FAILED_TO_CREATE);
+      }
+
       if (message.hasImage && message.imageBase64 && message.imageMimeType) {
         return this.processImageMessage(message);
       }
