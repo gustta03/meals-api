@@ -78,7 +78,7 @@ export class BaileysWhatsAppRepository implements IWhatsAppRepository {
         logger.debug({ connection, hasLastDisconnect: !!lastDisconnect, hasQr: !!qr }, "Connection update received");
 
         if (qr) {
-          logger.info("QR Code gerado para conectar ao WhatsApp");
+          logger.info({ qrCode: qr }, "QR Code gerado para conectar ao WhatsApp");
           console.log("\nQR Code para conectar ao WhatsApp:\n");
           qrcode.generate(qr, { small: true });
           console.log("\nEscaneie o QR Code acima com o WhatsApp\n");
