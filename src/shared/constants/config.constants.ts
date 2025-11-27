@@ -14,7 +14,7 @@ export const CONFIG = {
     DEFAULT_MAX_TOKENS: 2048,
   },
   TACO: {
-    API_URL: process.env.TACO_API_URL || "http://localhost:4000/graphql",
+    API_URL: process.env.TACO_API_URL,
   },
 } as const;
 

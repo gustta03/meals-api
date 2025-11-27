@@ -21,8 +21,14 @@ export const makePacoRepository = (): IPacoRepository => {
   );
   
   if (useTacoApi) {
-    const apiUrl = tacoApiUrlEnv || CONFIG.TACO.API_URL;
-    logger.info({ apiUrl }, "Using TACO API repository");
+    logger.info(
+      {
+        apiUrl: CONFIG.TACO.API_URL,
+        environment: process.env.NODE_ENV || "development",
+        customUrl: tacoApiUrlEnv || "using default",
+      },
+      "Using TACO API repository"
+    );
     return new TacoApiPacoRepository(makeTacoClient());
   }
   
