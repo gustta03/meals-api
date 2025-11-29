@@ -12,6 +12,7 @@
     "seed:paco": "bun run src/scripts/seed-paco.ts",
     "validate:taco": "bun run src/scripts/validate-taco-integration.ts",
     "check:paco": "bun run src/scripts/check-paco-repository.ts",
+    "test:mongodb": "bun run src/scripts/test-mongodb-connection.ts",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
     "docker:dev": "docker-compose -f docker-compose.dev.yml up -d",

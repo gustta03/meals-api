@@ -1,7 +1,7 @@
 export interface WhapiMessage {
   id: string;
   from: string;
-  to: string;
+  to?: string;
   timestamp: number;
   body?: string;
   type: "text" | "image" | "video" | "audio" | "document" | "location" | "contact" | "sticker";
@@ -18,6 +18,11 @@ export interface WhapiMessage {
   group?: {
     id: string;
     name?: string;
+  };
+  from_name?: string;
+  chat_id?: string;
+  text?: {
+    body?: string;
   };
 }
 

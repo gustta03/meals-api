@@ -122,10 +122,10 @@ export class WhapiWhatsAppRepository implements IWhatsAppRepository {
   private async mapWhapiMessageToDomain(whapiMessage: any): Promise<Message | null> {
     try {
       const from = whapiMessage.from || "";
-      const to = whapiMessage.to || "";
-      const body = whapiMessage.body || "";
-      const isGroup = whapiMessage.group?.id ? true : from.includes("@g.us");
-      const groupId = whapiMessage.group?.id || (isGroup ? from : undefined);
+      const to = whapiMessage.to || whapiMessage.chat_id || "";
+      const body = whapiMessage.body || whapiMessage.text?.body || (typeof whapiMessage.text === "string" ? whapiMessage.text : "") || "";
+      const isGroup = whapiMessage.group?.id ? true : from.includes("@g.us") || to.includes("@g.us");
+      const groupId = whapiMessage.group?.id || (isGroup ? (to || from) : undefined);
 
       const timestamp = whapiMessage.timestamp
         ? new Date(whapiMessage.timestamp * 1000)
