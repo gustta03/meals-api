@@ -143,7 +143,7 @@ export class WhapiWhatsAppRepository implements IWhatsAppRepository {
     try {
       const from = whapiMessage.from || "";
       const to = whapiMessage.to || whapiMessage.chat_id || "";
-      const body = whapiMessage.body || whapiMessage.text?.body || (typeof whapiMessage.text === "string" ? whapiMessage.text : "") || "";
+      let body = whapiMessage.body || whapiMessage.text?.body || (typeof whapiMessage.text === "string" ? whapiMessage.text : "") || "";
       const isGroup = whapiMessage.group?.id ? true : from.includes("@g.us") || to.includes("@g.us");
       const groupId = whapiMessage.group?.id || (isGroup ? (to || from) : undefined);
 
@@ -156,33 +156,78 @@ export class WhapiWhatsAppRepository implements IWhatsAppRepository {
       let imageMimeType: string | undefined;
 
       if (hasImage) {
-        const mediaData = whapiMessage.media || whapiMessage.image || {};
-        imageMimeType = mediaData.mimetype || "image/jpeg";
+        const imageData = whapiMessage.image || whapiMessage.media || {};
+        imageMimeType = imageData.mime_type || imageData.mimetype || "image/jpeg";
+        const caption = imageData.caption || "";
         
-        if (mediaData.data) {
-          imageBase64 = mediaData.data.replace(/^data:image\/[a-z]+;base64,/, "");
-        } else if (mediaData.url) {
+        const imageLink = imageData.link;
+        const imageUrl = imageData.url;
+        const hasLink = !!imageLink;
+        const hasUrl = !!imageUrl;
+        
+        logger.debug(
+          {
+            hasData: !!imageData.data,
+            hasPreview: !!imageData.preview,
+            hasLink,
+            hasUrl,
+            imageDataKeys: Object.keys(imageData),
+            previewType: typeof imageData.preview,
+            previewLength: imageData.preview ? String(imageData.preview).length : 0,
+            imageLink: imageLink || "none",
+            imageUrl: imageUrl || "none",
+          },
+          "Processing image data"
+        );
+        
+        if (imageData.data) {
+          imageBase64 = imageData.data.replace(/^data:image\/[a-z]+;base64,/, "");
+          logger.debug({ extractedBase64: !!imageBase64 }, "Extracted image from data field");
+        } else if (imageLink || imageUrl) {
+          const downloadUrl = imageLink || imageUrl;
           try {
-            logger.debug({ url: mediaData.url }, "Downloading image from URL");
-            const imageResponse = await fetch(mediaData.url);
+            logger.debug({ url: downloadUrl }, "Downloading image from URL");
+            const imageResponse = await fetch(downloadUrl);
             if (imageResponse.ok) {
               const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
               imageBase64 = imageBuffer.toString("base64");
+              logger.debug({ imageSize: imageBuffer.length }, "Image downloaded successfully from URL");
             } else {
-              logger.warn({ url: mediaData.url, status: imageResponse.status }, "Failed to download image from URL");
+              logger.warn({ url: downloadUrl, status: imageResponse.status }, "Failed to download image from URL, will try preview");
             }
           } catch (error) {
-            logger.error({ error, url: mediaData.url }, "Error downloading image from URL");
+            logger.warn({ error, url: downloadUrl }, "Error downloading image from URL, will try preview");
           }
         }
+        
+        if (!imageBase64 && imageData.preview) {
+          const previewStr = String(imageData.preview);
+          imageBase64 = previewStr.replace(/^data:image\/[a-z]+;base64,/, "");
+          logger.debug({ hasPreviewBase64: !!imageBase64, previewLength: previewStr.length }, "Using image preview as fallback");
+        }
 
-        if (!imageBase64 && !mediaData.url) {
-          logger.warn({ whapiMessage }, "Image message has no data or URL, skipping");
+        if (!imageBase64) {
+          logger.warn(
+            {
+              hasImageData: !!imageData.data,
+              hasPreview: !!imageData.preview,
+              hasLink,
+              hasUrl,
+              imageDataKeys: Object.keys(imageData),
+            },
+            "Image message has no usable data, preview, or URL - skipping"
+          );
           return null;
+        }
+
+        if (caption && !body) {
+          body = caption;
         }
       }
 
-      if (!body && !hasImage) {
+      const finalBodyValue = hasImage ? (body || "Foto enviada") : body;
+      
+      if (!finalBodyValue && !hasImage) {
         logger.debug({ type: whapiMessage.type, hasBody: !!body, hasImage }, "Message has no body and no image, skipping");
         return null;
       }
@@ -191,7 +236,7 @@ export class WhapiWhatsAppRepository implements IWhatsAppRepository {
         whapiMessage.id || `${Date.now()}-${Math.random()}`,
         from,
         to,
-        body,
+        finalBodyValue || "",
         timestamp,
         isGroup,
         groupId,
