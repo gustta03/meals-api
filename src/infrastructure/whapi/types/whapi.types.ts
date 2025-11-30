@@ -58,4 +58,60 @@ export interface WhapiChannel {
   status: "connected" | "disconnected" | "connecting";
 }
 
+export interface WhapiInteractiveButton {
+  type: "quick_reply";
+  title: string;
+  id: string;
+  copy_code?: string;
+  phone_number?: string;
+  url?: string;
+  merchant_url?: string;
+}
+
+export interface WhapiInteractiveRequest {
+  to: string;
+  quoted?: string;
+  edit?: string;
+  header?: {
+    text?: string;
+  };
+  body: {
+    text: string;
+  };
+  footer?: {
+    text?: string;
+  };
+  action: {
+    buttons?: WhapiInteractiveButton[];
+    list?: {
+      sections: Array<{
+        title?: string;
+        rows: Array<{
+          title: string;
+          description?: string;
+          id: string;
+        }>;
+      }>;
+      label: string;
+    };
+    product?: {
+      catalog_id: string;
+      product_id: string;
+    };
+  };
+  type: "button" | "list" | "product";
+  media?: string;
+  mime_type?: string;
+  no_encode?: boolean;
+  no_cache?: boolean;
+  caption?: string;
+  preview?: string;
+  width?: number;
+  height?: number;
+}
+
+export interface WhapiInteractiveResponse {
+  sent: boolean;
+  message: WhapiMessage;
+}
 

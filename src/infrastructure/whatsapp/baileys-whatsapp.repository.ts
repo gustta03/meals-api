@@ -289,6 +289,13 @@ export class BaileysWhatsAppRepository implements IWhatsAppRepository {
     }
   }
 
+  async sendInteractiveMessage(to: string, options: import("@domain/repositories/whatsapp.repository").InteractiveMessageOptions): Promise<void> {
+    logger.warn({ to }, "Interactive messages not supported in Baileys, sending as regular message");
+    const messageText = options.header ? `${options.header}\n\n${options.body}` : options.body;
+    const footerText = options.footer ? `\n\n${options.footer}` : "";
+    await this.sendMessage(to, `${messageText}${footerText}`);
+  }
+
   onMessage(callback: (message: Message) => Promise<void>): void {
     this.messageCallbacks.push(callback);
   }

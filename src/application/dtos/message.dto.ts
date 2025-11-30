@@ -13,5 +13,14 @@ export interface SendMessageDto {
   message: string;
   imageBuffer?: Buffer;
   imageMimeType?: string;
+  interactiveMessage?: {
+    header?: string;
+    body: string;
+    footer?: string;
+    buttons: Array<{
+      id: string;
+      title: string;
+    }>;
+  };
 }
 

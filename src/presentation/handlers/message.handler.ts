@@ -43,6 +43,7 @@ export class MessageHandler {
           message: result.data.message,
           imageBuffer: result.data.imageBuffer,
           imageMimeType: result.data.imageMimeType,
+          interactiveMessage: result.data.interactiveMessage,
         };
 
         logger.debug({

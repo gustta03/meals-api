@@ -13,11 +13,19 @@ export class SendMessageUseCase {
           to: dto.to,
           messageLength: dto.message.length,
           hasImage: !!dto.imageBuffer,
+          hasInteractive: !!dto.interactiveMessage,
         },
         "Enviando mensagem"
       );
 
-      if (dto.imageBuffer) {
+      if (dto.interactiveMessage) {
+        await this.whatsappRepository.sendInteractiveMessage(dto.to, {
+          header: dto.interactiveMessage.header,
+          body: dto.interactiveMessage.body,
+          footer: dto.interactiveMessage.footer,
+          buttons: dto.interactiveMessage.buttons,
+        });
+      } else if (dto.imageBuffer) {
         await this.whatsappRepository.sendImage(
           dto.to,
           dto.imageBuffer,

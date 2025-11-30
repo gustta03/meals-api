@@ -22,6 +22,15 @@ export interface ProcessMessageResult {
   message: string;
   imageBuffer?: Buffer;
   imageMimeType?: string;
+  interactiveMessage?: {
+    header?: string;
+    body: string;
+    footer?: string;
+    buttons: Array<{
+      id: string;
+      title: string;
+    }>;
+  };
 }
 
 export class ProcessMessageUseCase {
@@ -59,6 +68,11 @@ export class ProcessMessageUseCase {
   private async processTextMessage(message: Message): Promise<Result<ProcessMessageResult, string>> {
     const messageBody = message.body;
     const lowerBody = messageBody.toLowerCase().trim();
+
+    // Check for button responses first
+    if (this.isButtonResponse(messageBody)) {
+      return this.handleButtonResponse(message.from, messageBody);
+    }
 
     // Check for pending confirmation first (has higher priority than goal updates)
     if (PendingConfirmationService.hasPendingConfirmation(message.from)) {
@@ -276,13 +290,112 @@ export class ProcessMessageUseCase {
 
     const itemsList = extractedItems.map((item) => `• ${item.name} (${item.quantity})`).join("\n");
 
-    let confirmationMessage = `Olá! Analisei a foto do seu prato e identifiquei os seguintes itens:\n\n${itemsList}\n\nEstá correto? Se sim, posso calcular os valores nutricionais completos para você! 😊\n\nConfirma esses itens? (sim/não)`;
+    const bodyText = `Olá! Analisei a foto do seu prato e identifiquei os seguintes itens:\n\n${itemsList}\n\nEstá correto? Se sim, posso calcular os valores nutricionais completos para você! 😊`;
 
-    if (isCompletingOnboarding) {
-      confirmationMessage = `${confirmationMessage}\n\n${ONBOARDING.MESSAGES.PRACTICING_SUCCESS}`;
+    const footerText = isCompletingOnboarding 
+      ? ONBOARDING.MESSAGES.PRACTICING_SUCCESS 
+      : "Se você souber o peso exato, pode informá-lo!";
+
+    return success({
+      message: bodyText,
+      interactiveMessage: {
+        body: bodyText,
+        footer: footerText,
+        buttons: [
+          {
+            id: "confirm_yes",
+            title: "✅ Sim, está correto",
+          },
+          {
+            id: "confirm_with_weight",
+            title: "⚖️ Informar peso",
+          },
+          {
+            id: "confirm_no",
+            title: "❌ Não está correto",
+          },
+        ],
+      },
+    });
+  }
+
+  private isButtonResponse(body: string): boolean {
+    const buttonIds = ["confirm_yes", "confirm_no", "confirm_with_weight"];
+    const buttonTexts = [
+      "✅ sim, está correto",
+      "❌ não está correto",
+      "⚖️ informar peso",
+      "sim, está correto",
+      "não está correto",
+      "informar peso",
+    ];
+    
+    const normalizedBody = body.trim().toLowerCase();
+    
+    return buttonIds.some(id => normalizedBody === id) ||
+           buttonTexts.some(text => normalizedBody.includes(text));
+  }
+
+  private extractButtonId(body: string): string | null {
+    const normalizedBody = body.trim().toLowerCase();
+    
+    if (normalizedBody === "confirm_yes" || normalizedBody.includes("sim, está correto") || normalizedBody.includes("sim esta correto")) {
+      return "confirm_yes";
+    }
+    
+    if (normalizedBody === "confirm_no" || normalizedBody.includes("não está correto") || normalizedBody.includes("nao esta correto")) {
+      return "confirm_no";
+    }
+    
+    if (normalizedBody === "confirm_with_weight" || normalizedBody.includes("informar peso")) {
+      return "confirm_with_weight";
+    }
+    
+    return null;
+  }
+
+  private async handleButtonResponse(
+    userId: string,
+    buttonIdOrBody: string
+  ): Promise<Result<ProcessMessageResult, string>> {
+    const buttonId = this.extractButtonId(buttonIdOrBody);
+    
+    if (!buttonId) {
+      return success({ 
+        message: "Não reconheci sua resposta. Por favor, use os botões ou digite 'sim' ou 'não'." 
+      });
+    }
+    if (!PendingConfirmationService.hasPendingConfirmation(userId)) {
+      return success({ 
+        message: "Não há confirmação pendente. Por favor, envie uma foto novamente." 
+      });
     }
 
-    return success({ message: confirmationMessage });
+    const pendingData = PendingConfirmationService.getPendingConfirmation(userId);
+    
+    if (buttonId === "confirm_no") {
+      PendingConfirmationService.clearPendingConfirmation(userId);
+      return success({ 
+        message: "Entendi! Se quiser, pode enviar outra foto ou descrever sua refeição novamente. 😊" 
+      });
+    }
+
+    if (buttonId === "confirm_with_weight") {
+      return success({ 
+        message: "Por favor, informe o peso de cada item no formato:\n\n*Item*: *peso em gramas*\n\nExemplo:\n*ovos mexidos*: 150\n*morango*: 100\n*uva*: 80" 
+      });
+    }
+
+    if (buttonId === "confirm_yes") {
+      if (pendingData) {
+        PendingConfirmationService.clearPendingConfirmation(userId);
+        return this.processPendingNutritionData(userId, pendingData);
+      }
+    }
+
+    return success({ 
+      message: "Não consegui processar sua resposta. Por favor, tente novamente." 
+    });
   }
 
   private isConfirmationResponse(text: string): boolean | null {

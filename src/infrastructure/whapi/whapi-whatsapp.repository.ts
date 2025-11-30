@@ -1,4 +1,4 @@
-import { IWhatsAppRepository } from "@domain/repositories/whatsapp.repository";
+import { IWhatsAppRepository, InteractiveMessageOptions } from "@domain/repositories/whatsapp.repository";
 import { Message } from "@domain/entities/message.entity";
 import { WhapiClient } from "./whapi-client";
 import { logger } from "@shared/logger/logger";
@@ -83,6 +83,39 @@ export class WhapiWhatsAppRepository implements IWhatsAppRepository {
     }
   }
 
+  async sendInteractiveMessage(to: string, options: InteractiveMessageOptions): Promise<void> {
+    if (!this.isStarted) {
+      logger.error("Cannot send interactive message: repository not started");
+      throw new Error("WhatsApp repository not started");
+    }
+
+    try {
+      const buttons = options.buttons.map((btn) => ({
+        type: "quick_reply" as const,
+        title: btn.title,
+        id: btn.id,
+      }));
+
+      await this.whapiClient.sendInteractiveMessage({
+        to,
+        header: options.header ? { text: options.header } : undefined,
+        body: {
+          text: options.body,
+        },
+        footer: options.footer ? { text: options.footer } : undefined,
+        action: {
+          buttons,
+        },
+        type: "button",
+      });
+
+      logger.debug({ to, buttonCount: buttons.length }, "Interactive message sent successfully");
+    } catch (error) {
+      logger.error({ error, to }, "Failed to send interactive message");
+      throw error;
+    }
+  }
+
   onMessage(callback: (message: Message) => Promise<void>): void {
     this.messageCallbacks.push(callback);
     logger.debug({ callbackCount: this.messageCallbacks.length }, "Message callback registered");
@@ -144,6 +177,11 @@ export class WhapiWhatsAppRepository implements IWhatsAppRepository {
       const from = whapiMessage.from || "";
       const to = whapiMessage.to || whapiMessage.chat_id || "";
       let body = whapiMessage.body || whapiMessage.text?.body || (typeof whapiMessage.text === "string" ? whapiMessage.text : "") || "";
+      
+      // Check if this is a button response (interactive message response)
+      if (whapiMessage.text?.button) {
+        body = whapiMessage.text.button;
+      }
       const isGroup = whapiMessage.group?.id ? true : from.includes("@g.us") || to.includes("@g.us");
       const groupId = whapiMessage.group?.id || (isGroup ? (to || from) : undefined);
 

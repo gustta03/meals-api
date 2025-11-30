@@ -1,6 +1,6 @@
 import { CONFIG } from "@shared/constants/config.constants";
 import { logger } from "@shared/logger/logger";
-import { WhapiSendMessageRequest, WhapiSendMessageResponse, WhapiChannel } from "./types/whapi.types";
+import { WhapiSendMessageRequest, WhapiSendMessageResponse, WhapiChannel, WhapiInteractiveRequest, WhapiInteractiveResponse } from "./types/whapi.types";
 import { ERROR_MESSAGES } from "@shared/constants/error-messages.constants";
 
 export class WhapiClient {
@@ -159,6 +159,50 @@ export class WhapiClient {
         imageSize: imageBuffer.length,
         hasCaption: !!caption,
       }, "Failed to send image via Whapi");
+      throw error;
+    }
+  }
+
+  async sendInteractiveMessage(request: WhapiInteractiveRequest): Promise<WhapiInteractiveResponse> {
+    try {
+      const formattedTo = this.formatPhoneNumber(request.to);
+      const endpoint = `/messages/interactive?channel_id=${this.channelId}`;
+
+      logger.debug({
+        endpoint,
+        to: formattedTo,
+        type: request.type,
+        buttonCount: request.action.buttons?.length || 0,
+        hasHeader: !!request.header,
+        hasFooter: !!request.footer,
+      }, "Sending interactive message via Whapi");
+
+      const payload = {
+        ...request,
+        to: formattedTo,
+      };
+
+      const response = await this.request<WhapiInteractiveResponse>(endpoint, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+
+      const messageId = this._extractMessageId(response.message || response);
+      logger.info({ 
+        to: formattedTo, 
+        messageId,
+        type: request.type,
+        sent: response.sent,
+      }, "Interactive message sent successfully via Whapi");
+
+      return response;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error({ 
+        error: errorMessage, 
+        to: request.to,
+        type: request.type,
+      }, "Failed to send interactive message via Whapi");
       throw error;
     }
   }
