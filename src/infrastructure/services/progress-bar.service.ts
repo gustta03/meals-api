@@ -15,6 +15,7 @@ export class ProgressBarService implements IProgressBarService {
       const resvg = new Resvg(svg, {
         font: {
           loadSystemFonts: true,
+          defaultFontFamily: 'sans-serif',
         },
       });
       
@@ -57,27 +58,19 @@ export class ProgressBarService implements IProgressBarService {
 
     return `<?xml version="1.0" encoding="UTF-8"?>
 <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <style>
-      .title-text { font-family: Arial, Helvetica, sans-serif; font-size: ${PROGRESS_BAR.TITLE_FONT_SIZE}px; font-weight: bold; fill: ${PROGRESS_BAR.TEXT_COLOR}; }
-      .value-text { font-family: Arial, Helvetica, sans-serif; font-size: ${PROGRESS_BAR.VALUE_FONT_SIZE}px; font-weight: bold; fill: ${PROGRESS_BAR.TEXT_COLOR}; }
-      .label-text { font-family: Arial, Helvetica, sans-serif; font-size: ${PROGRESS_BAR.LABEL_FONT_SIZE}px; fill: #6B7280; }
-      .percentage-text { font-family: Arial, Helvetica, sans-serif; font-size: ${PROGRESS_BAR.PERCENTAGE_FONT_SIZE}px; font-weight: bold; fill: ${percentageTextColor}; }
-    </style>
-  </defs>
   <rect width="${width}" height="${height}" fill="${PROGRESS_BAR.BACKGROUND_COLOR}"/>
   
-  <text x="${width / 2}" y="${titleY + PROGRESS_BAR.TITLE_FONT_SIZE}" text-anchor="middle" class="title-text">Meta Diária de Calorias</text>
+  <text x="${width / 2}" y="${titleY + PROGRESS_BAR.TITLE_FONT_SIZE}" text-anchor="middle" font-family="sans-serif" font-size="${PROGRESS_BAR.TITLE_FONT_SIZE}" font-weight="bold" fill="${PROGRESS_BAR.TEXT_COLOR}">Meta Diária de Calorias</text>
   
-  <text x="${padding}" y="${valuesY + PROGRESS_BAR.VALUE_FONT_SIZE}" text-anchor="start" class="value-text">${currentCaloriesRounded}</text>
+  <text x="${padding}" y="${valuesY + PROGRESS_BAR.VALUE_FONT_SIZE}" text-anchor="start" font-family="sans-serif" font-size="${PROGRESS_BAR.VALUE_FONT_SIZE}" font-weight="bold" fill="${PROGRESS_BAR.TEXT_COLOR}">${currentCaloriesRounded}</text>
   
-  <text x="${width - padding}" y="${valuesY + PROGRESS_BAR.VALUE_FONT_SIZE + (PROGRESS_BAR.VALUE_FONT_SIZE - PROGRESS_BAR.LABEL_FONT_SIZE) / 2}" text-anchor="end" class="label-text">/ ${goalCaloriesRounded} kcal</text>
+  <text x="${width - padding}" y="${valuesY + PROGRESS_BAR.VALUE_FONT_SIZE + (PROGRESS_BAR.VALUE_FONT_SIZE - PROGRESS_BAR.LABEL_FONT_SIZE) / 2}" text-anchor="end" font-family="sans-serif" font-size="${PROGRESS_BAR.LABEL_FONT_SIZE}" fill="#6B7280">/ ${goalCaloriesRounded} kcal</text>
   
   <rect x="${padding}" y="${barY}" width="${barWidth}" height="${barHeight}" rx="${borderRadius}" fill="${PROGRESS_BAR.BAR_BACKGROUND_COLOR}"/>
   
   <rect x="${padding}" y="${barY}" width="${fillWidth}" height="${barHeight}" rx="${borderRadius}" fill="${PROGRESS_BAR.BAR_FILL_COLOR}"/>
   
-  <text x="${percentageTextX}" y="${percentageY}" text-anchor="middle" dominant-baseline="middle" class="percentage-text">${percentageRounded}%</text>
+  <text x="${percentageTextX}" y="${percentageY}" text-anchor="middle" dominant-baseline="middle" font-family="sans-serif" font-size="${PROGRESS_BAR.PERCENTAGE_FONT_SIZE}" font-weight="bold" fill="${percentageTextColor}">${percentageRounded}%</text>
 </svg>`;
   }
 }
