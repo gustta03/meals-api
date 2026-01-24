@@ -147,18 +147,62 @@ export class ExtractNutritionViaGeminiUseCase {
   private buildCombinedAnalysis(
     validItems: any[]
   ): NutritionAnalysisDto {
-    const items = validItems.map((item) => ({
-      name: item.foodName,
-      quantity: `${item.weightGrams}g`,
-      weightGrams: item.weightGrams,
-      pacoId: `gemini_${Date.now()}`,
+    const items = validItems.map((item, index) => {
+      // A estrutura retornada pelo validator (ValidatedNutritionDto) tem:
+      // foodName, weightGrams, calories, proteinG, carbsG, fatG
+      // Verificar se é ValidatedNutritionDto (tem isValid: true)
+      if (!item.isValid) {
+        logger.warn(
+          { item, index },
+          "Invalid item passed to buildCombinedAnalysis"
+        );
+        return null;
+      }
+
+      const foodName = item.foodName || `Alimento ${index + 1}`;
+      const weightGrams = item.weightGrams || 100;
+      const calories = item.calories || 0;
+      const proteinG = item.proteinG || 0;
+      const carbsG = item.carbsG || 0;
+      const fatG = item.fatG || 0;
+
+      logger.debug(
+        {
+          foodName,
+          weightGrams,
+          calories,
+          proteinG,
+          carbsG,
+          fatG,
+          itemStructure: Object.keys(item),
+        },
+        "Building combined analysis item"
+      );
+
+      return {
+        name: foodName,
+        quantity: `${weightGrams}g`,
+        weightGrams: weightGrams,
+        pacoId: `gemini_${Date.now()}_${index}`,
+        nutrients: {
+          kcal: Math.round(calories * 100) / 100,
+          proteinG: Math.round(proteinG * 100) / 100,
+          carbG: Math.round(carbsG * 100) / 100,
+          fatG: Math.round(fatG * 100) / 100,
+        },
+      };
+    }).filter((item) => item !== null) as Array<{
+      name: string;
+      quantity: string;
+      weightGrams: number;
+      pacoId: string;
       nutrients: {
-        kcal: item.calories,
-        proteinG: item.proteinG,
-        carbG: item.carbsG,
-        fatG: item.fatG,
-      },
-    }));
+        kcal: number;
+        proteinG: number;
+        carbG: number;
+        fatG: number;
+      };
+    }>;
 
     const totals = {
       kcal: 0,
@@ -179,6 +223,37 @@ export class ExtractNutritionViaGeminiUseCase {
     totals.proteinG = Math.round(totals.proteinG * 100) / 100;
     totals.carbG = Math.round(totals.carbG * 100) / 100;
     totals.fatG = Math.round(totals.fatG * 100) / 100;
+
+    // Validação matemática: verificar se os valores fazem sentido
+    // 1g carboidrato = 4 kcal, 1g proteína = 4 kcal, 1g gordura = 9 kcal
+    const calculatedCalories = (totals.carbG * 4) + (totals.proteinG * 4) + (totals.fatG * 9);
+    const calorieDifference = Math.abs(totals.kcal - calculatedCalories);
+    
+    if (calorieDifference > totals.kcal * 0.2) { // Mais de 20% de diferença
+      logger.warn(
+        {
+          reportedCalories: totals.kcal,
+          calculatedCalories: Math.round(calculatedCalories * 100) / 100,
+          difference: calorieDifference,
+          items: items.map((i) => ({
+            name: i.name,
+            weight: i.weightGrams,
+            kcal: i.nutrients.kcal,
+          })),
+        },
+        "Calorie mismatch detected - values may be incorrect"
+      );
+    }
+
+    logger.debug(
+      {
+        totalItems: items.length,
+        totals,
+        calculatedCalories: Math.round(calculatedCalories * 100) / 100,
+        calorieDifference: Math.round(calorieDifference * 100) / 100,
+      },
+      "Combined analysis built"
+    );
 
     return { items, totals };
   }

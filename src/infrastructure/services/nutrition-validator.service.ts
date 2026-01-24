@@ -74,9 +74,45 @@ export class NutritionValidator {
     this.checkMacros(nutrition.fatG, "Lipídio", warnings);
     this.checkWeight(nutrition.weightGrams, warnings);
     this.checkMacroBalance(nutrition, warnings);
+    this.checkMathematicalConsistency(nutrition, warnings);
 
     const isValid = this.isResultValid(nutrition);
     return { isValid, warnings };
+  }
+
+  /**
+   * Verifica consistência matemática entre calorias e macros
+   * 1g carboidrato = 4 kcal, 1g proteína = 4 kcal, 1g gordura = 9 kcal
+   */
+  private checkMathematicalConsistency(
+    nutrition: NutritionDataDto,
+    warnings: ValidationWarning[]
+  ): void {
+    const calculatedCalories = (nutrition.carbsG * 4) + (nutrition.proteinG * 4) + (nutrition.fatG * 9);
+    const difference = Math.abs(nutrition.calories - calculatedCalories);
+    const percentageDifference = nutrition.calories > 0 
+      ? (difference / nutrition.calories) * 100 
+      : 100;
+
+    // Permitir até 10% de diferença (alguns alimentos têm fibras, álcool, etc.)
+    if (percentageDifference > 10) {
+      warnings.push({
+        field: "Calorias",
+        issue: `Inconsistência matemática: calorias reportadas (${nutrition.calories}) vs calculadas (${Math.round(calculatedCalories)}) - diferença de ${Math.round(percentageDifference)}%`,
+        value: nutrition.calories,
+      });
+
+      logger.warn(
+        {
+          reportedCalories: nutrition.calories,
+          calculatedCalories: Math.round(calculatedCalories * 100) / 100,
+          difference: Math.round(difference * 100) / 100,
+          percentageDifference: Math.round(percentageDifference * 100) / 100,
+          nutrition,
+        },
+        "Mathematical inconsistency detected in nutrition data"
+      );
+    }
   }
 
   /**

@@ -125,22 +125,29 @@ export class GeminiNutritionExtractor {
    * Constrói prompt otimizado para Gemini
    */
   private buildExtractionPrompt(foodDescription: string, weightGrams: number): string {
-    return `Você é um nutricionista especialista. Analise o alimento e forneça dados nutricionais precisos.
+    return `Você é um nutricionista especialista. Analise o alimento e forneça dados nutricionais PRECISOS e MATEMATICAMENTE CORRETOS.
 
 Alimento: "${foodDescription}"
 Peso: ${weightGrams}g
+
+IMPORTANTE - Valores devem ser matematicamente consistentes:
+- 1g de carboidrato = 4 kcal
+- 1g de proteína = 4 kcal  
+- 1g de gordura = 9 kcal
+- Total de calorias DEVE ser aproximadamente: (carbs_g × 4) + (protein_g × 4) + (fat_g × 9)
+- A diferença entre calorias calculadas e reportadas não deve exceder 5%
 
 Retorne APENAS um JSON válido (sem markdown, sem código blocks, JSON puro):
 {
   "food_name": "nome padronizado do alimento em português",
   "weight_grams": ${weightGrams},
-  "calories": número inteiro,
+  "calories": número inteiro (DEVE ser consistente com os macros),
   "protein_g": número com até 1 casa decimal,
   "carbs_g": número com até 1 casa decimal,
   "fat_g": número com até 1 casa decimal,
   "fiber_g": número com até 1 casa decimal (opcional),
   "confidence": "alta" | "média" | "baixa",
-  "notes": "observações opcionais (ex: 'valor estimado para versão frita')"
+  "notes": "observações opcionais"
 }
 
 Regras de Precisão:
@@ -159,8 +166,13 @@ Regras de Precisão:
 5. Confidence "média" para estimativas bem fundamentadas ou preparação não especificada
 6. Confidence "baixa" para alimentos muito vaguos ou regionais
 
+VALORES DE REFERÊNCIA (por 100g):
+- Arroz branco cozido: ~130 kcal, 2.3g proteína, 28g carboidrato, 0.2g gordura
+- Batata cozida: ~75 kcal, 1.5g proteína, 17g carboidrato, 0.1g gordura
+- Alface: ~15 kcal, 1.2g proteína, 2.5g carboidrato, 0.2g gordura
+
 Exemplo de resposta válida:
-{"food_name":"Frango, peito","weight_grams":200,"calories":330,"protein_g":62.0,"carbs_g":0.0,"fat_g":7.0,"confidence":"média","notes":"Valores médios sem preparação específica"}`;
+{"food_name":"Arroz branco cozido","weight_grams":150,"calories":195,"protein_g":3.5,"carbs_g":42.0,"fat_g":0.3,"confidence":"alta","notes":"Valores para arroz branco cozido"}`;
   }
 
   /**

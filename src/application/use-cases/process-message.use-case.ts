@@ -478,21 +478,74 @@ export class ProcessMessageUseCase {
   private parseMessageIntoFoods(
     messageBody: string
   ): Array<{ description: string; weightGrams: number }> {
-    // Separar por "e" ou ","
-    const parts = messageBody.split(/\s+(?:e|,)\s+/i);
+    // Normalizar a mensagem: remover espaços extras e normalizar separadores
+    const normalized = messageBody.trim().replace(/\s+/g, " ");
+    
+    // Separar por "e" ou "," (com ou sem espaços)
+    const parts = normalized.split(/\s*(?:e|,)\s*/i).filter((part) => part.trim().length > 0);
 
     const foods = parts.map((part: string) => {
       const trimmed = part.trim();
       
-      // Tentar extrair peso em gramas (ex: "150g", "1 xícara")
-      const gramsMatch = trimmed.match(/(\d+)\s*g(?:ramas?)?/i);
-      const weightGrams = gramsMatch ? parseInt(gramsMatch[1], 10) : 100; // Padrão 100g
+      // Extrair peso em gramas (ex: "150g", "150 g", "150 gramas")
+      // Padrão: número seguido de "g", "g.", "gramas", "grama"
+      const gramsMatch = trimmed.match(/(\d+(?:[.,]\d+)?)\s*(?:g|g\.|gramas?|grama)/i);
+      
+      let weightGrams = 100; // Padrão 100g se não encontrar
+      
+      if (gramsMatch) {
+        const weightStr = gramsMatch[1].replace(",", ".");
+        weightGrams = Math.round(parseFloat(weightStr));
+      } else {
+        // Tentar extrair apenas número no início (ex: "150 de arroz")
+        const numberMatch = trimmed.match(/^(\d+(?:[.,]\d+)?)/);
+        if (numberMatch) {
+          const weightStr = numberMatch[1].replace(",", ".");
+          weightGrams = Math.round(parseFloat(weightStr));
+        }
+      }
 
-      return {
-        description: trimmed,
+      // Remover o peso da descrição para deixar apenas o nome do alimento
+      let description = trimmed
+        .replace(/(\d+(?:[.,]\d+)?)\s*(?:g|g\.|gramas?|grama)/i, "")
+        .replace(/^de\s+/i, "")
+        .trim();
+
+      // Se não sobrou nada na descrição, usar a parte original sem o número
+      if (!description || description.length === 0) {
+        description = trimmed.replace(/^\d+(?:[.,]\d+)?\s*(?:g|g\.|gramas?|grama)?\s*/i, "").trim();
+      }
+
+      // Se ainda não tiver descrição, usar a parte original
+      if (!description || description.length === 0) {
+        description = trimmed;
+      }
+
+      const result = {
+        description: description,
         weightGrams: Math.max(1, Math.min(5000, weightGrams)), // Limitar entre 1g e 5000g
       };
+
+      logger.debug(
+        {
+          originalPart: trimmed,
+          extractedDescription: result.description,
+          extractedWeight: result.weightGrams,
+        },
+        "Parsed food item from message"
+      );
+
+      return result;
     });
+
+    logger.debug(
+      {
+        originalMessage: messageBody,
+        parsedFoods: foods,
+        totalItems: foods.length,
+      },
+      "Parsed message into foods"
+    );
 
     return foods;
   }
