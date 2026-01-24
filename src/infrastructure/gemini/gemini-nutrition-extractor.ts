@@ -1,13 +1,3 @@
-/**
- * Serviço Gemini para Extração de Dados Nutricionais
- * 
- * Responsabilidades:
- * - Extrair dados nutricionais via Gemini
- * - Construir prompts estruturados e eficientes
- * - Parsear respostas JSON do Gemini
- * - Tratar erros de resposta
- */
-
 import { GeminiService } from "./gemini.service";
 import { NutritionValidator } from "../services/nutrition-validator.service";
 import { NutritionCacheService } from "../services/nutrition-cache.service";
@@ -15,9 +5,6 @@ import { logger } from "@shared/logger/logger";
 import { ERROR_MESSAGES } from "@shared/constants/error-messages.constants";
 import type { NutritionExtractionResult } from "@application/dtos/extracted-nutrition.dto";
 
-/**
- * Resposta esperada do Gemini em formato JSON
- */
 interface GeminiNutritionResponse {
   readonly food_name: string;
   readonly weight_grams: number;
@@ -45,9 +32,6 @@ export class GeminiNutritionExtractor {
     this.cache = cache;
   }
 
-  /**
-   * Extrai dados nutricionais de uma descrição de alimento
-   */
   async extract(foodDescription: string, weightGrams: number): Promise<NutritionExtractionResult> {
     const cachedData = this.cache.get(foodDescription, weightGrams);
     if (cachedData) {
@@ -93,9 +77,6 @@ export class GeminiNutritionExtractor {
     return validationResult;
   }
 
-  /**
-   * Faz chamada ao Gemini para extrair nutrição
-   */
   private async callGemini(
     foodDescription: string,
     weightGrams: number
@@ -117,66 +98,110 @@ export class GeminiNutritionExtractor {
     }
   }
 
-  /**
-   * Constrói prompt otimizado para Gemini
-   */
   private buildExtractionPrompt(foodDescription: string, weightGrams: number): string {
-    return `Você é um nutricionista especialista. Analise o alimento e forneça dados nutricionais PRECISOS e MATEMATICAMENTE CORRETOS.
+    return `Você é um mecanismo determinístico de análise nutricional.
+Criatividade é estritamente proibida.
+
+Seu único objetivo é retornar dados nutricionais matematicamente corretos, consistentes e verificáveis.
+
+Se qualquer informação necessária não estiver explicitamente definida, você deve:
+
+usar valores médios conservadores amplamente aceitos, OU
+
+reduzir o nível de "confidence"
+
+PROIBIÇÕES ABSOLUTAS
+
+Você NÃO PODE:
+
+inferir método de preparo não especificado
+
+assumir ingredientes, óleo, manteiga ou condimentos
+
+extrapolar dados regionais ou marcas
+
+usar valores "típicos" sem base consolidada
+
+retornar "confidence": "alta" sem preparo explícito
+
+ignorar ou contornar regras matemáticas
+
+retornar texto fora de JSON
+
+retornar JSON inválido ou incompleto
+
+REGRAS MATEMÁTICAS (INQUEBRÁVEIS)
+
+Use exclusivamente:
+
+Carboidratos: 4 kcal por grama
+
+Proteínas: 4 kcal por grama
+
+Gorduras: 9 kcal por grama
+
+Calorias totais DEVEM ser calculadas como:
+
+(calorias) = (carbs_g × 4) + (protein_g × 4) + (fat_g × 9)
+
+A diferença entre:
+
+calorias calculadas
+
+campo "calories"
+
+NÃO pode exceder 5%.
+
+Se houver inconsistência:
+➡️ ajuste os macronutrientes, nunca ignore a matemática.
+
+FORMATO DE SAÍDA (OBRIGATÓRIO)
+
+Retorne APENAS um JSON válido
+
+Sem markdown
+
+Sem explicações
+
+Sem comentários
+
+Sem texto adicional
+
+Campos obrigatórios sempre presentes
+
+"calories": número inteiro
+
+Macronutrientes: máximo 1 casa decimal
+
+Estrutura fixa (campos obrigatórios):
+{
+"food_name": "string",
+"weight_grams": número,
+"calories": número inteiro,
+"protein_g": número (até 1 casa decimal),
+"carbs_g": número (até 1 casa decimal),
+"fat_g": número (até 1 casa decimal),
+"confidence": "alta" | "média" | "baixa"
+}
+
+Campos opcionais (inclua apenas se relevante):
+"fiber_g": número (até 1 casa decimal)
+"notes": "string"
+
+Se fibra não for relevante ou confiável, omita fiber_g.
+Se não houver observações, omita notes.
 
 Alimento: "${foodDescription}"
 Peso: ${weightGrams}g
 
-IMPORTANTE - Valores devem ser matematicamente consistentes:
-- 1g de carboidrato = 4 kcal
-- 1g de proteína = 4 kcal  
-- 1g de gordura = 9 kcal
-- Total de calorias DEVE ser aproximadamente: (carbs_g × 4) + (protein_g × 4) + (fat_g × 9)
-- A diferença entre calorias calculadas e reportadas não deve exceder 5%
-
-Retorne APENAS um JSON válido (sem markdown, sem código blocks, JSON puro):
-{
-  "food_name": "nome padronizado do alimento em português",
-  "weight_grams": ${weightGrams},
-  "calories": número inteiro (DEVE ser consistente com os macros),
-  "protein_g": número com até 1 casa decimal,
-  "carbs_g": número com até 1 casa decimal,
-  "fat_g": número com até 1 casa decimal,
-  "fiber_g": número com até 1 casa decimal (opcional),
-  "confidence": "alta" | "média" | "baixa",
-  "notes": "observações opcionais"
-}
-
-Regras de Precisão:
-1. Se o alimento é vago ou não especifica preparação (ex: "frango", "peito de frango"):
-   - Retorne nome genérico SEM assumir preparação: "Frango, peito"
-   - Use valores nutricionais médios/genéricos (não específicos)
-   - Marque confidence como "média"
-2. Se é específico quanto à preparação (ex: "frango frito", "peito grelhado"):
-   - Retorne nome completo com preparação
-   - Use dados para essa preparação específica
-   - Marque confidence como "alta"
-3. Se é caseiro/receita complexa:
-   - Faça estimativa baseada em ingredientes típicos
-   - Marque confidence como "média" ou "baixa"
-4. Confidence "alta" apenas para alimentos catalogados com preparação específica
-5. Confidence "média" para estimativas bem fundamentadas ou preparação não especificada
-6. Confidence "baixa" para alimentos muito vaguos ou regionais
-
 VALORES DE REFERÊNCIA (por 100g):
 - Arroz branco cozido: ~130 kcal, 2.3g proteína, 28g carboidrato, 0.2g gordura
 - Batata cozida: ~75 kcal, 1.5g proteína, 17g carboidrato, 0.1g gordura
-- Alface: ~15 kcal, 1.2g proteína, 2.5g carboidrato, 0.2g gordura
-
-Exemplo de resposta válida:
-{"food_name":"Arroz branco cozido","weight_grams":150,"calories":195,"protein_g":3.5,"carbs_g":42.0,"fat_g":0.3,"confidence":"alta","notes":"Valores para arroz branco cozido"}`;
+- Alface: ~15 kcal, 1.2g proteína, 2.5g carboidrato, 0.2g gordura`;
   }
 
-  /**
-   * Parseia resposta JSON do Gemini
-   */
   private parseGeminiResponse(responseText: string): GeminiNutritionResponse {
     try {
-      // Remover markdown code blocks se presente
       const cleaned = responseText
         .replace(/```json\n?/g, "")
         .replace(/```\n?/g, "")
@@ -184,12 +209,10 @@ Exemplo de resposta válida:
 
       const parsed = JSON.parse(cleaned) as GeminiNutritionResponse;
 
-      // Validar estrutura básica
       if (!parsed.food_name || typeof parsed.calories !== "number") {
         throw new Error("Response missing required fields");
       }
 
-      // Validar que food_name não está vazio ou é inválido
       const foodName = parsed.food_name.trim();
       if (foodName.length === 0 || 
           foodName.toLowerCase().includes("não especificado") ||
