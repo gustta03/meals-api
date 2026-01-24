@@ -27,7 +27,6 @@ export const ERROR_MESSAGES = {
     CHANNEL_NOT_CONNECTED: "Whapi channel is not connected",
   },
   REPORT: {
-    WEEKLY_FAILED: "Failed to generate weekly report",
     CHART_GENERATION_FAILED: "Failed to generate chart",
   },
   USER: {

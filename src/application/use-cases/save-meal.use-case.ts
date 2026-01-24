@@ -4,6 +4,7 @@ import { NutritionAnalysisDto } from "../dtos/nutrition-analysis.dto";
 import { Result, success, failure } from "@shared/types/result";
 import { generateUUID } from "@shared/utils/uuid";
 import { logger } from "@shared/logger/logger";
+import { getDateKey, formatDate } from "@shared/utils/date.utils";
 
 export class SaveMealUseCase {
   constructor(private readonly mealRepository: IMealRepository) {}
@@ -32,7 +33,16 @@ export class SaveMealUseCase {
 
       const savedMeal = await this.mealRepository.save(meal);
 
-      logger.info({ mealId: savedMeal.id, userId }, "Meal saved successfully");
+      logger.info(
+        {
+          mealId: savedMeal.id,
+          userId,
+          mealDate: savedMeal.date.toISOString(),
+          mealDateKey: getDateKey(savedMeal.date),
+          mealDateLocal: formatDate(savedMeal.date, "DD/MM/YYYY HH:mm:ss"),
+        },
+        "Meal saved successfully"
+      );
       return success(savedMeal);
     } catch (error) {
       logger.error({ error, userId }, "Failed to save meal");

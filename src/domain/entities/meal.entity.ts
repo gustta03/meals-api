@@ -1,3 +1,5 @@
+import { normalizeToStartOfDay, toDate, getToday } from "@shared/utils/date.utils";
+
 export class Meal {
   private constructor(
     public readonly id: string,
@@ -29,8 +31,13 @@ export class Meal {
     mealType: MealType,
     date?: Date
   ): Meal {
-    const mealDate = date || new Date();
-    return new Meal(id, userId, items, totals, mealType, mealDate, new Date());
+    // Normalizar data para início do dia no timezone do Brasil
+    const mealDate = date 
+      ? toDate(normalizeToStartOfDay(date))
+      : toDate(getToday());
+    
+    const createdAt = new Date();
+    return new Meal(id, userId, items, totals, mealType, mealDate, createdAt);
   }
 
   private validate(): void {

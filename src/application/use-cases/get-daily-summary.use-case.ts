@@ -1,6 +1,7 @@
 import { IMealRepository } from "@domain/repositories/meal.repository";
 import { Result, success, failure } from "@shared/types/result";
 import { logger } from "@shared/logger/logger";
+import { getToday, normalizeToStartOfDay, getDateKey, toDate } from "@shared/utils/date.utils";
 
 export interface DailySummaryDto {
   date: string;
@@ -38,8 +39,8 @@ export class GetDailySummaryUseCase {
 
   async execute(userId: string, date?: Date): Promise<Result<DailySummaryDto, string>> {
     try {
-      const targetDate = date || new Date();
-      const meals = await this.mealRepository.findByUserIdAndDate(userId, targetDate);
+      const targetDate = date ? normalizeToStartOfDay(date) : getToday();
+      const meals = await this.mealRepository.findByUserIdAndDate(userId, toDate(targetDate));
 
       const dailyTotals = {
         kcal: 0,
@@ -68,7 +69,7 @@ export class GetDailySummaryUseCase {
       });
 
       return success({
-        date: targetDate.toISOString().split("T")[0],
+        date: getDateKey(targetDate),
         meals: mealsDto,
         dailyTotals: {
           kcal: Math.round(dailyTotals.kcal * 100) / 100,

@@ -4,6 +4,12 @@ import { MongoDBConnection } from "../database/mongodb.connection";
 import { Collection } from "mongodb";
 import { DATABASE } from "@shared/constants/database.constants";
 import { logger } from "@shared/logger/logger";
+import {
+  normalizeToStartOfDay,
+  normalizeToEndOfDay,
+  getDateKey,
+  toDate,
+} from "@shared/utils/date.utils";
 
 interface MealDocument {
   _id: string;
@@ -40,10 +46,8 @@ export class MongoDBMealRepository implements IMealRepository {
 
   async findByUserIdAndDate(userId: string, date: Date): Promise<Meal[]> {
     try {
-      const startOfDay = new Date(date);
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(date);
-      endOfDay.setHours(23, 59, 59, 999);
+      const startOfDay = toDate(normalizeToStartOfDay(date));
+      const endOfDay = toDate(normalizeToEndOfDay(date));
 
       const docs = await this.collection
         .find({
@@ -94,7 +98,7 @@ export class MongoDBMealRepository implements IMealRepository {
         mealDates: docs.map((doc) => ({
           date: doc.date,
           dateISO: doc.date instanceof Date ? doc.date.toISOString() : String(doc.date),
-          dateKey: doc.date instanceof Date ? this._getDateKey(doc.date) : "unknown",
+          dateKey: doc.date instanceof Date ? getDateKey(doc.date) : "unknown",
         })),
       }, "Meals found in date range");
 
@@ -128,7 +132,7 @@ export class MongoDBMealRepository implements IMealRepository {
   }
 
   private toEntity(doc: MealDocument): Meal {
-    const mealDate = doc.date instanceof Date ? new Date(doc.date) : new Date(doc.date);
+    const mealDate = doc.date instanceof Date ? doc.date : new Date(doc.date);
     return Meal.create(
       doc._id,
       doc.userId,
@@ -137,15 +141,6 @@ export class MongoDBMealRepository implements IMealRepository {
       doc.mealType,
       mealDate
     );
-  }
-
-  private _getDateKey(date: Date): string {
-    const normalizedDate = new Date(date);
-    normalizedDate.setHours(0, 0, 0, 0);
-    const year = normalizedDate.getFullYear();
-    const month = String(normalizedDate.getMonth() + 1).padStart(2, "0");
-    const day = String(normalizedDate.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
   }
 
   private toDocument(meal: Meal): MealDocument {

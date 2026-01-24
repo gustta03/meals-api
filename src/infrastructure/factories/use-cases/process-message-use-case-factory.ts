@@ -3,7 +3,6 @@ import { ExtractNutritionViaGeminiUseCase } from "@application/use-cases/extract
 import { makeAnalyzeNutritionUseCase } from "./analyze-nutrition-use-case-factory";
 import { makeSaveMealUseCase } from "./save-meal-use-case-factory";
 import { makeGetDailySummaryUseCase } from "./get-daily-summary-use-case-factory";
-import { createGenerateWeeklyReportUseCase } from "./generate-weekly-report-use-case-factory";
 import { makeManageOnboardingUseCase } from "./manage-onboarding-use-case-factory";
 import { makeEnsureUserExistsUseCase } from "./ensure-user-exists-use-case-factory";
 import { makeProgressBarService } from "../services/progress-bar-service-factory";
@@ -20,7 +19,6 @@ export const makeProcessMessageUseCase = (): ProcessMessageUseCase => {
     makeExtractNutritionViaGeminiUseCase(),
     makeSaveMealUseCase(),
     makeGetDailySummaryUseCase(),
-    createGenerateWeeklyReportUseCase(),
     makeManageOnboardingUseCase(),
     makeEnsureUserExistsUseCase(),
     makeProgressBarService(),

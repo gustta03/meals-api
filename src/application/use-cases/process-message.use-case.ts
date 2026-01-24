@@ -4,7 +4,6 @@ import { AnalyzeNutritionUseCase } from "./analyze-nutrition.use-case";
 import { ExtractNutritionViaGeminiUseCase } from "./extract-nutrition-via-gemini.use-case";
 import { SaveMealUseCase } from "./save-meal.use-case";
 import { GetDailySummaryUseCase } from "./get-daily-summary.use-case";
-import { GenerateWeeklyReportUseCase } from "./generate-weekly-report.use-case";
 import { ManageOnboardingUseCase } from "./manage-onboarding.use-case";
 import { EnsureUserExistsUseCase } from "./ensure-user-exists.use-case";
 import { MESSAGE } from "@shared/constants/message.constants";
@@ -31,7 +30,6 @@ export class ProcessMessageUseCase {
     private readonly extractNutritionViaGeminiUseCase: ExtractNutritionViaGeminiUseCase,
     private readonly saveMealUseCase: SaveMealUseCase,
     private readonly getDailySummaryUseCase: GetDailySummaryUseCase,
-    private readonly generateWeeklyReportUseCase: GenerateWeeklyReportUseCase,
     private readonly manageOnboardingUseCase: ManageOnboardingUseCase,
     private readonly ensureUserExistsUseCase: EnsureUserExistsUseCase,
     private readonly progressBarService: IProgressBarService,
@@ -177,14 +175,6 @@ export class ProcessMessageUseCase {
       return this.getDailySummary(message.from);
     }
 
-    if (
-      lowerBody.includes(MESSAGE.COMMANDS.RELATORIO_SEMANAL) ||
-      lowerBody.includes(MESSAGE.COMMANDS.RELATORIO_SEMANAL_ALT) ||
-      lowerBody.includes(MESSAGE.COMMANDS.SEMANA)
-    ) {
-      return this.getWeeklyReport(message.from);
-    }
-
     const nutritionResult = await this.extractNutritionUsingStrategy(messageBody);
 
     if (!nutritionResult.success) {
@@ -320,12 +310,21 @@ export class ProcessMessageUseCase {
     pendingData: { items: Array<{ name: string; quantity: string; weightGrams: number; unit?: string }> }
   ): Promise<Result<ProcessMessageResult, string>> {
     try {
-      // Re-analisar com os dados pendentes
-      const nutritionResult = await this.analyzeNutritionUseCase.executeFromExtractedItems(pendingData.items);
+      // Extrair nutrição via Gemini para os itens confirmados
+      const foods = pendingData.items.map((item) => ({
+        description: item.name,
+        weightGrams: item.weightGrams,
+      }));
+
+      const nutritionResult = await this.extractNutritionViaGeminiUseCase.executeForFoods(foods);
 
       if (!nutritionResult.success) {
+        logger.warn(
+          { error: nutritionResult.error, itemCount: pendingData.items.length },
+          "Failed to extract nutrition via Gemini for confirmed items"
+        );
         return success({ 
-          message: "Desculpe, não consegui calcular os valores nutricionais para esses itens. Alguns alimentos podem não estar na nossa base de dados. 😅" 
+          message: "Desculpe, não consegui calcular os valores nutricionais para esses itens. Tente descrever novamente em texto! 😅" 
         });
       }
 
@@ -406,22 +405,6 @@ export class ProcessMessageUseCase {
 
     return success({
       message: `Ótimo! Aqui está seu resumo nutricional de hoje (${summaryResult.data.date}): 😊\n\n${mealsList}\n\n📊 Total do dia:\n• ${dailyTotals.kcal} kcal\n• ${dailyTotals.proteinG}g proteína\n• ${dailyTotals.carbG}g carboidrato\n• ${dailyTotals.fatG}g lipídio\n\nParabéns por cuidar da sua alimentação! Continue assim! 🌟`,
-    });
-  }
-
-  private async getWeeklyReport(userId: string): Promise<Result<ProcessMessageResult, string>> {
-    const reportResult = await this.generateWeeklyReportUseCase.execute(userId);
-
-    if (!reportResult.success) {
-      return failure(reportResult.error);
-    }
-
-    const { textReport, chartImage } = reportResult.data;
-
-    return success({
-      message: textReport,
-      imageBuffer: chartImage,
-      imageMimeType: "image/png",
     });
   }
 
