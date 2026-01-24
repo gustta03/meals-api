@@ -482,43 +482,103 @@ export class ProcessMessageUseCase {
     const normalized = messageBody.trim().replace(/\s+/g, " ");
     
     // Separar por "e" ou "," (com ou sem espaços)
+    // Mas preservar casos como "100 de alface" (sem "g")
     const parts = normalized.split(/\s*(?:e|,)\s*/i).filter((part) => part.trim().length > 0);
 
-    const foods = parts.map((part: string) => {
-      const trimmed = part.trim();
+    const foods: Array<{ description: string; weightGrams: number }> = [];
+
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i].trim();
       
-      // Extrair peso em gramas (ex: "150g", "150 g", "150 gramas")
-      // Padrão: número seguido de "g", "g.", "gramas", "grama"
-      const gramsMatch = trimmed.match(/(\d+(?:[.,]\d+)?)\s*(?:g|g\.|gramas?|grama)/i);
+      // Extrair peso em gramas (ex: "150g", "150 g", "150 gramas", ou apenas "150")
+      const gramsMatch = part.match(/(\d+(?:[.,]\d+)?)\s*(?:g|g\.|gramas?|grama)/i);
       
-      let weightGrams = 100; // Padrão 100g se não encontrar
-      
+      let weightGrams: number | null = null;
+      let description = part;
+
       if (gramsMatch) {
+        // Caso 1: Tem "g" ou "gramas" explícito
         const weightStr = gramsMatch[1].replace(",", ".");
         weightGrams = Math.round(parseFloat(weightStr));
+        
+        // Remover o peso da descrição
+        description = part
+          .replace(/(\d+(?:[.,]\d+)?)\s*(?:g|g\.|gramas?|grama)/i, "")
+          .replace(/^de\s+/i, "")
+          .trim();
       } else {
-        // Tentar extrair apenas número no início (ex: "150 de arroz")
-        const numberMatch = trimmed.match(/^(\d+(?:[.,]\d+)?)/);
+        // Caso 2: Apenas número no início (ex: "100 de alface" ou "150 arroz")
+        const numberMatch = part.match(/^(\d+(?:[.,]\d+)?)\s+/);
         if (numberMatch) {
           const weightStr = numberMatch[1].replace(",", ".");
           weightGrams = Math.round(parseFloat(weightStr));
+          
+          // Remover o número da descrição
+          description = part
+            .replace(/^\d+(?:[.,]\d+)?\s+/, "")
+            .replace(/^de\s+/i, "")
+            .trim();
         }
       }
 
-      // Remover o peso da descrição para deixar apenas o nome do alimento
-      let description = trimmed
-        .replace(/(\d+(?:[.,]\d+)?)\s*(?:g|g\.|gramas?|grama)/i, "")
-        .replace(/^de\s+/i, "")
-        .trim();
-
-      // Se não sobrou nada na descrição, usar a parte original sem o número
-      if (!description || description.length === 0) {
-        description = trimmed.replace(/^\d+(?:[.,]\d+)?\s*(?:g|g\.|gramas?|grama)?\s*/i, "").trim();
+      // Se não encontrou peso, tentar pegar do próximo item ou usar padrão
+      if (weightGrams === null) {
+        // Se a descrição está vazia ou é só um número, pode ser que o número esteja separado
+        // Exemplo: "150" e "de arroz" em partes separadas
+        if (!description || description.length === 0 || /^\d+$/.test(description)) {
+          // Tentar pegar o próximo item se existir
+          if (i + 1 < parts.length) {
+            const nextPart = parts[i + 1].trim();
+            const nextNumberMatch = nextPart.match(/^(\d+(?:[.,]\d+)?)/);
+            if (nextNumberMatch) {
+              const weightStr = nextNumberMatch[1].replace(",", ".");
+              weightGrams = Math.round(parseFloat(weightStr));
+              description = nextPart.replace(/^\d+(?:[.,]\d+)?\s*/, "").trim();
+              i++; // Pular o próximo item já que foi usado
+            } else {
+              // Se não tem número no próximo, usar o número atual como peso
+              const currentNumber = parseInt(description, 10);
+              if (!isNaN(currentNumber)) {
+                weightGrams = currentNumber;
+                // Tentar pegar descrição do próximo item
+                if (i + 1 < parts.length) {
+                  description = parts[i + 1].trim();
+                  i++; // Pular o próximo item
+                } else {
+                  // Se não tem próximo item, pular este
+                  logger.warn(
+                    {
+                      part,
+                      currentNumber,
+                      allParts: parts,
+                    },
+                    "Number without food name, skipping item"
+                  );
+                  continue;
+                }
+              }
+            }
+          }
+        }
+        
+        // Se ainda não tem peso, usar padrão de 100g
+        if (weightGrams === null) {
+          weightGrams = 100;
+        }
       }
 
-      // Se ainda não tiver descrição, usar a parte original
-      if (!description || description.length === 0) {
-        description = trimmed;
+      // Se a descrição está vazia ou é inválida, pular este item
+      if (!description || description.length === 0 || description === "de" || /^\d+$/.test(description)) {
+        logger.warn(
+          {
+            originalPart: part,
+            description,
+            weightGrams,
+            allParts: parts,
+          },
+          "Skipping invalid food item (empty or invalid description)"
+        );
+        continue;
       }
 
       const result = {
@@ -528,15 +588,16 @@ export class ProcessMessageUseCase {
 
       logger.debug(
         {
-          originalPart: trimmed,
+          originalPart: part,
           extractedDescription: result.description,
           extractedWeight: result.weightGrams,
+          partIndex: i,
         },
         "Parsed food item from message"
       );
 
-      return result;
-    });
+      foods.push(result);
+    }
 
     logger.debug(
       {
@@ -546,6 +607,19 @@ export class ProcessMessageUseCase {
       },
       "Parsed message into foods"
     );
+
+    // Validar que temos pelo menos um alimento válido
+    if (foods.length === 0) {
+      logger.warn(
+        { originalMessage: messageBody },
+        "No valid foods parsed from message"
+      );
+      // Retornar a mensagem original como um único alimento com peso padrão
+      return [{
+        description: messageBody.trim(),
+        weightGrams: 100,
+      }];
+    }
 
     return foods;
   }

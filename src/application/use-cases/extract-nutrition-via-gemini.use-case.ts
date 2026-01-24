@@ -72,9 +72,42 @@ export class ExtractNutritionViaGeminiUseCase {
       return failure(ERROR_MESSAGES.NUTRITION.INVALID_INPUT);
     }
 
+    // Filtrar alimentos inválidos antes de processar
+    const validFoods = foods.filter((food) => {
+      const description = food.description?.trim();
+      return (
+        description &&
+        description.length > 0 &&
+        !/^\d+$/.test(description) && // Não é apenas um número
+        description.toLowerCase() !== "de" &&
+        description.toLowerCase() !== "e" &&
+        food.weightGrams > 0 &&
+        food.weightGrams <= 5000
+      );
+    });
+
+    if (validFoods.length === 0) {
+      logger.warn(
+        { originalFoods: foods },
+        "No valid foods after filtering"
+      );
+      return failure("Não foi possível identificar alimentos válidos na mensagem");
+    }
+
+    if (validFoods.length < foods.length) {
+      logger.warn(
+        {
+          originalCount: foods.length,
+          validCount: validFoods.length,
+          filteredOut: foods.length - validFoods.length,
+        },
+        "Some foods were filtered out as invalid"
+      );
+    }
+
     try {
       const extractedItems = await Promise.all(
-        foods.map((food) =>
+        validFoods.map((food) =>
           this.geminiExtractor.extract(food.description, food.weightGrams)
         )
       );
@@ -83,7 +116,7 @@ export class ExtractNutritionViaGeminiUseCase {
       const invalidItems = extractedItems.filter((item) => !item.isValid);
       if (invalidItems.length > 0) {
         logger.warn(
-          { totalItems: foods.length, failedItems: invalidItems.length },
+          { totalItems: validFoods.length, failedItems: invalidItems.length },
           "Some nutrition items failed to extract"
         );
         // Continuar com itens válidos
@@ -103,7 +136,7 @@ export class ExtractNutritionViaGeminiUseCase {
         error instanceof Error ? error.message : ERROR_MESSAGES.NUTRITION.FAILED_TO_ANALYZE;
 
       logger.error(
-        { error, foodCount: foods.length },
+        { error, foodCount: validFoods.length },
         "Error extracting multiple foods via Gemini"
       );
 
@@ -154,12 +187,39 @@ export class ExtractNutritionViaGeminiUseCase {
       if (!item.isValid) {
         logger.warn(
           { item, index },
-          "Invalid item passed to buildCombinedAnalysis"
+          "Invalid item passed to buildCombinedAnalysis - skipping"
         );
         return null;
       }
 
-      const foodName = item.foodName || `Alimento ${index + 1}`;
+      // Se foodName está vazio ou é inválido, usar a descrição original se disponível
+      let foodName = item.foodName;
+      
+      // Se foodName está vazio, nulo ou é apenas espaços, tentar usar attempted
+      if (!foodName || foodName.trim().length === 0) {
+        foodName = item.attempted?.foodName || `Alimento ${index + 1}`;
+        logger.warn(
+          {
+            index,
+            item,
+            fallbackName: foodName,
+          },
+          "Food name is empty, using fallback"
+        );
+      }
+
+      // Se ainda assim está vazio ou é inválido, pular este item
+      if (!foodName || foodName.trim().length === 0 || foodName.toLowerCase().includes("não especificado") || foodName.toLowerCase().includes("nao especificado")) {
+        logger.warn(
+          {
+            index,
+            foodName,
+            item,
+          },
+          "Skipping item with invalid or unspecified food name"
+        );
+        return null;
+      }
       const weightGrams = item.weightGrams || 100;
       const calories = item.calories || 0;
       const proteinG = item.proteinG || 0;

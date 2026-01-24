@@ -13,7 +13,7 @@ import { NutritionValidator } from "../services/nutrition-validator.service";
 import { NutritionCacheService } from "../services/nutrition-cache.service";
 import { logger } from "@shared/logger/logger";
 import { ERROR_MESSAGES } from "@shared/constants/error-messages.constants";
-import type { ExtractedNutritionDto, NutritionExtractionResult } from "@application/dtos/extracted-nutrition.dto";
+import type { NutritionExtractionResult } from "@application/dtos/extracted-nutrition.dto";
 
 /**
  * Resposta esperada do Gemini em formato JSON
@@ -49,7 +49,6 @@ export class GeminiNutritionExtractor {
    * Extrai dados nutricionais de uma descrição de alimento
    */
   async extract(foodDescription: string, weightGrams: number): Promise<NutritionExtractionResult> {
-    // 1. Verificar cache
     const cachedData = this.cache.get(foodDescription, weightGrams);
     if (cachedData) {
       logger.debug(
@@ -63,7 +62,6 @@ export class GeminiNutritionExtractor {
       };
     }
 
-    // 2. Chamar Gemini
     const geminiResult = await this.callGemini(foodDescription, weightGrams);
     if (!geminiResult.success) {
       return {
@@ -73,7 +71,6 @@ export class GeminiNutritionExtractor {
       };
     }
 
-    // 3. Validar resultado
     const validationResult = this.validator.validate(
       {
         foodName: geminiResult.data.food_name,
@@ -91,7 +88,6 @@ export class GeminiNutritionExtractor {
       return validationResult;
     }
 
-    // 4. Cachear resultado
     this.cache.set(foodDescription, weightGrams, validationResult);
 
     return validationResult;
@@ -191,6 +187,18 @@ Exemplo de resposta válida:
       // Validar estrutura básica
       if (!parsed.food_name || typeof parsed.calories !== "number") {
         throw new Error("Response missing required fields");
+      }
+
+      // Validar que food_name não está vazio ou é inválido
+      const foodName = parsed.food_name.trim();
+      if (foodName.length === 0 || 
+          foodName.toLowerCase().includes("não especificado") ||
+          foodName.toLowerCase().includes("nao especificado") ||
+          foodName.toLowerCase().includes("não encontrado") ||
+          foodName.toLowerCase().includes("nao encontrado") ||
+          foodName.toLowerCase() === "alimento" ||
+          /^\d+$/.test(foodName)) {
+        throw new Error(`Invalid food name returned: "${foodName}"`);
       }
 
       return parsed;
