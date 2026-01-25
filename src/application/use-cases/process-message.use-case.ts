@@ -2,6 +2,7 @@ import { Message } from "@domain/entities/message.entity";
 import { Result, success, failure } from "@shared/types/result";
 import { AnalyzeNutritionUseCase } from "./analyze-nutrition.use-case";
 import { ExtractNutritionViaGeminiUseCase } from "./extract-nutrition-via-gemini.use-case";
+import { ExtractNutritionViaTacoUseCase } from "./extract-nutrition-via-taco.use-case";
 import { SaveMealUseCase } from "./save-meal.use-case";
 import { GetDailySummaryUseCase } from "./get-daily-summary.use-case";
 import { ManageOnboardingUseCase } from "./manage-onboarding.use-case";
@@ -27,7 +28,7 @@ export interface ProcessMessageResult {
 export class ProcessMessageUseCase {
   constructor(
     private readonly analyzeNutritionUseCase: AnalyzeNutritionUseCase,
-    private readonly extractNutritionViaGeminiUseCase: ExtractNutritionViaGeminiUseCase,
+    private readonly extractNutritionViaTacoUseCase: ExtractNutritionViaTacoUseCase,
     private readonly saveMealUseCase: SaveMealUseCase,
     private readonly getDailySummaryUseCase: GetDailySummaryUseCase,
     private readonly manageOnboardingUseCase: ManageOnboardingUseCase,
@@ -314,7 +315,7 @@ export class ProcessMessageUseCase {
         .map((item) => `${item.weightGrams}g ${item.name}`)
         .join(" e ");
 
-      const nutritionResult = await this.extractNutritionViaGeminiUseCase.executeForMessage(messageBody);
+      const nutritionResult = await this.extractNutritionViaTacoUseCase.execute(messageBody);
 
       if (!nutritionResult.success) {
         logger.warn(
@@ -442,28 +443,28 @@ export class ProcessMessageUseCase {
   }
 
   /**
-   * Extrai nutrição usando Gemini como única fonte
-   * O Gemini faz todo o parsing e retorna JSON com array de alimentos
+   * Extrai nutrição usando TACO como fonte de verdade
+   * Gemini apenas identifica alimentos, TACO fornece dados precisos
    */
   private async extractNutritionUsingStrategy(
     messageBody: string
   ): Promise<Result<NutritionAnalysisDto, string>> {
-    const geminiResult = await this.extractNutritionViaGeminiUseCase.executeForMessage(messageBody);
+    const tacoResult = await this.extractNutritionViaTacoUseCase.execute(messageBody);
 
-    if (geminiResult.success) {
+    if (tacoResult.success) {
       logger.debug(
         { messageLength: messageBody.length },
-        "Nutrition extracted successfully via Gemini"
+        "Nutrition extracted successfully via TACO"
       );
-      return geminiResult;
+      return tacoResult;
     }
 
     logger.error(
-      { geminiError: geminiResult.error },
-      "Failed to extract nutrition via Gemini"
+      { tacoError: tacoResult.error },
+      "Failed to extract nutrition via TACO"
     );
 
-    return failure(geminiResult.error);
+    return failure(tacoResult.error);
   }
 }
 

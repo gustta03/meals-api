@@ -13,3 +13,4 @@ auth_info_baileys/
 *.pid.lock
 .cursor/
 render.yaml
+taco-data/

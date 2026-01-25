@@ -10,6 +10,8 @@
     "lint": "eslint src --ext .ts",
     "type-check": "tsc --noEmit",
     "seed:paco": "bun run src/scripts/seed-paco.ts",
+    "import:taco": "bun run src/scripts/import-taco.ts",
+    "docker:import:taco": "docker-compose --profile import up import-taco",
     "validate:taco": "bun run src/scripts/validate-taco-integration.ts",
     "check:paco": "bun run src/scripts/check-paco-repository.ts",
     "test:mongodb": "bun run src/scripts/test-mongodb-connection.ts",
@@ -41,7 +43,8 @@
     "elysia": "^1.4.16",
     "mongodb": "^6.21.0",
     "pino": "^8.17.2",
-    "qrcode-terminal": "^0.12.0"
+    "qrcode-terminal": "^0.12.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/bun": "latest",
